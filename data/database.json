@@ -1,0 +1,465 @@
+{
+  "settings": {
+    "companyName": "VALAM DESIGN",
+    "ownerName": "Dhiren Bhagvanbhai Savaliya",
+    "email": "valamdesignindia+0@gmail.com",
+    "phone": "+919930022492",
+    "currency": "$",
+    "shopify": {
+      "shopDomain": "jodhaniexport.myshopify.com",
+      "webhookSecret": "shpss_test_secret_12345",
+      "adminAccessToken": "shpat_demo_secret_token",
+      "isConnected": true,
+      "lastSyncAt": "2026-10-13T11:09:23.996Z",
+      "autoSync": true
+    }
+  },
+  "stages": [
+    {
+      "id": "stage-1",
+      "name": "New Orders",
+      "order": 1,
+      "roles": [
+        "Admin"
+      ]
+    },
+    {
+      "id": "stage-2",
+      "name": "CAD Design",
+      "order": 2,
+      "roles": [
+        "Admin",
+        "CAD Designer"
+      ]
+    },
+    {
+      "id": "stage-3",
+      "name": "RPT",
+      "order": 3,
+      "roles": [
+        "Admin"
+      ]
+    },
+    {
+      "id": "stage-4",
+      "name": "Casting",
+      "order": 4,
+      "roles": [
+        "Admin",
+        "Manufacturer"
+      ]
+    },
+    {
+      "id": "stage-5",
+      "name": "Factory",
+      "order": 5,
+      "roles": [
+        "Admin",
+        "Manufacturer"
+      ]
+    },
+    {
+      "id": "stage-6",
+      "name": "Quality Check",
+      "order": 6,
+      "roles": [
+        "Admin",
+        "CAD Designer",
+        "Manufacturer"
+      ]
+    },
+    {
+      "id": "stage-7",
+      "name": "Packaging",
+      "order": 7,
+      "roles": [
+        "Admin",
+        "Manufacturer"
+      ]
+    },
+    {
+      "id": "stage-8",
+      "name": "Shipping",
+      "order": 8,
+      "roles": [
+        "Admin"
+      ]
+    },
+    {
+      "id": "stage-9",
+      "name": "Completed",
+      "order": 9,
+      "roles": [
+        "Admin"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "id": "user-1",
+      "name": "Dhiren Bhagvanbhai Savaliya",
+      "email": "valamdesignindia+0@gmail.com",
+      "role": "Admin",
+      "createdAt": "2026-09-01T10:00:00.000Z"
+    },
+    {
+      "id": "user-2",
+      "name": "Amit Patel",
+      "email": "amit.cad@example.com",
+      "role": "CAD Designer",
+      "createdAt": "2026-09-05T11:00:00.000Z"
+    },
+    {
+      "id": "user-3",
+      "name": "Rajesh Sharma",
+      "email": "rajesh.casting@example.com",
+      "role": "Manufacturer",
+      "createdAt": "2026-09-10T14:30:00.000Z"
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord-1791889575159-bsgoe",
+      "orderNumber": "#4419",
+      "shopifyOrderId": "1791889575154",
+      "shopifyOrderNumber": "#4419",
+      "source": "shopify",
+      "customer": {
+        "name": "Sophia Laurent",
+        "email": "sophia.laurent@luxurygems.fr",
+        "phone": "+33 6 12 34 56 78"
+      },
+      "shippingAddress": {
+        "address1": "402, Royal Diamond Plaza, Mini Bazar",
+        "address2": "",
+        "city": "Surat",
+        "province": "Gujarat",
+        "zip": "395006",
+        "country": "India"
+      },
+      "billingAddress": {
+        "address1": "402, Royal Diamond Plaza, Mini Bazar",
+        "city": "Surat",
+        "province": "Gujarat",
+        "zip": "395006",
+        "country": "India"
+      },
+      "items": [
+        {
+          "id": "li-0-1791889575154",
+          "title": "Pavé Halo Diamond Pendant",
+          "productType": "Pendant",
+          "variantTitle": "14K Rose Gold / 1.50ct",
+          "sku": "JOD-PENDANT-894",
+          "metalType": "14K",
+          "metalColor": "Rose gold",
+          "diamondShape": "Round",
+          "diamondSize": "1.50",
+          "chainLength": "—",
+          "customEngraving": "Valam Bespoke",
+          "quantity": 1,
+          "price": 1350,
+          "imageUrl": ""
+        }
+      ],
+      "subtotal": 1350,
+      "shippingFee": 60,
+      "total": 1410,
+      "baseProductionCost": 635,
+      "profit": 715,
+      "currentStageId": "stage-1",
+      "priority": "Medium",
+      "status": "Active",
+      "progressPercent": 11,
+      "dueDate": "2026-10-27",
+      "notesFromCustomer": "Custom Inscription: Valam Bespoke",
+      "internalNotes": "Auto-imported from Shopify store. Ready for CAD design.",
+      "customerTrackingToken": "tr_xo7j28d4",
+      "gallery": [],
+      "comments": [],
+      "activity": [
+        {
+          "id": "act-1791889575159",
+          "description": "Order created (via Shopify Webhook)",
+          "timestamp": "2026-10-13T11:06:15.159Z",
+          "actor": "Shopify"
+        }
+      ],
+      "createdAt": "2026-10-13T11:06:15.159Z",
+      "updatedAt": "2026-10-13T11:06:15.159Z"
+    },
+    {
+      "id": "ord-1791888806754-88kpr",
+      "orderNumber": "#2156",
+      "shopifyOrderId": "sim-1791888806748",
+      "shopifyOrderNumber": "#2156",
+      "source": "shopify",
+      "customer": {
+        "name": "Marcus Vance",
+        "email": "mvance@manhattanfinejewels.com",
+        "phone": "+1 212 555 0192"
+      },
+      "shippingAddress": {
+        "address1": "742 Evergreen Luxury Blvd",
+        "address2": "",
+        "city": "Mumbai",
+        "province": "Maharashtra",
+        "zip": "400050",
+        "country": "India"
+      },
+      "billingAddress": {
+        "address1": "742 Evergreen Luxury Blvd",
+        "city": "Mumbai",
+        "province": "Maharashtra",
+        "zip": "400050",
+        "country": "India"
+      },
+      "items": [
+        {
+          "id": "li-0-1791888806748",
+          "title": "Pavé Halo Diamond Pendant",
+          "productType": "Pendant",
+          "variantTitle": "14K Rose Gold / 1.50ct",
+          "sku": "JOD-PENDANT-770",
+          "metalType": "14K",
+          "metalColor": "Rose gold",
+          "diamondShape": "Round",
+          "diamondSize": "1.00",
+          "chainLength": "—",
+          "customEngraving": "Valam Bespoke",
+          "quantity": 1,
+          "price": 1350,
+          "imageUrl": ""
+        }
+      ],
+      "subtotal": 1350,
+      "shippingFee": 50,
+      "total": 1400,
+      "baseProductionCost": 608,
+      "profit": 742,
+      "currentStageId": "stage-6",
+      "priority": "Medium",
+      "status": "Active",
+      "progressPercent": 67,
+      "dueDate": "2026-10-27",
+      "notesFromCustomer": "Custom order: Engraving: Valam Bespoke",
+      "internalNotes": "Imported via Shopify integration.",
+      "customerTrackingToken": "tr_njww1r44",
+      "gallery": [],
+      "comments": [],
+      "activity": [
+        {
+          "id": "act-1791889659340",
+          "description": "Stage moved to Quality Check",
+          "timestamp": "2026-10-13T11:07:39.341Z",
+          "actor": "Admin"
+        },
+        {
+          "id": "act-1791889067862",
+          "description": "Stage moved to Factory",
+          "timestamp": "2026-10-13T10:57:47.862Z",
+          "actor": "Admin"
+        },
+        {
+          "id": "act-1791889067014",
+          "description": "Stage moved to Casting",
+          "timestamp": "2026-10-13T10:57:47.014Z",
+          "actor": "Admin"
+        },
+        {
+          "id": "act-1791889066050",
+          "description": "Stage moved to RPT",
+          "timestamp": "2026-10-13T10:57:46.050Z",
+          "actor": "Admin"
+        },
+        {
+          "id": "act-1791889064274",
+          "description": "Stage moved to CAD Design",
+          "timestamp": "2026-10-13T10:57:44.274Z",
+          "actor": "Admin"
+        },
+        {
+          "id": "act-1791888806754",
+          "description": "Order created (via Shopify Webhook)",
+          "timestamp": "2026-10-13T10:53:26.754Z",
+          "actor": "Shopify"
+        }
+      ],
+      "createdAt": "2026-10-13T10:53:26.754Z",
+      "updatedAt": "2026-10-13T11:07:39.341Z"
+    },
+    {
+      "id": "6a4dc73d-2dc6-4e67-ba26-5769e3e55926",
+      "orderNumber": "VALAM DESIGN",
+      "shopifyOrderId": "gid://shopify/Order/58928371928",
+      "shopifyOrderNumber": "#1001",
+      "source": "shopify",
+      "customer": {
+        "name": "Dhiren Bhagvanbhai Savaliya",
+        "email": "valamdesignindia@gmail.com",
+        "phone": "+919930022492"
+      },
+      "shippingAddress": {
+        "address1": "402, Royal Diamond Plaza, Mini Bazar",
+        "city": "Surat",
+        "province": "Gujarat",
+        "zip": "395006",
+        "country": "India"
+      },
+      "billingAddress": {
+        "address1": "402, Royal Diamond Plaza, Mini Bazar",
+        "city": "Surat",
+        "province": "Gujarat",
+        "zip": "395006",
+        "country": "India"
+      },
+      "items": [
+        {
+          "id": "item-1",
+          "title": "VALAM DESIGN",
+          "productType": "Pendant",
+          "variantTitle": "14K White Gold / 1.20ct",
+          "sku": "VD-PND-001",
+          "metalType": "14K",
+          "metalColor": "White gold",
+          "diamondShape": "Round",
+          "diamondSize": "1.20",
+          "chainLength": "—",
+          "customEngraving": "14K Stamping & engraving Dhiren'",
+          "quantity": 1,
+          "price": 1075,
+          "imageUrl": ""
+        }
+      ],
+      "subtotal": 1075,
+      "shippingFee": 60,
+      "total": 1135,
+      "baseProductionCost": 500,
+      "profit": 575,
+      "currentStageId": "stage-9",
+      "priority": "High",
+      "status": "Delivered",
+      "progressPercent": 100,
+      "assignedTo": "Rajesh Sharma",
+      "dueDate": "2026-10-18",
+      "notesFromCustomer": "No notes from customer.",
+      "internalNotes": "Rush order for upcoming exhibition delivery. Priority laser engraving confirmed.",
+      "trackingNumber": "",
+      "trackingCarrier": "FedEx Priority",
+      "trackingUrl": "",
+      "customerTrackingToken": "tr_valam_928174",
+      "gallery": [],
+      "comments": [
+        {
+          "id": "c-1",
+          "author": "Amit Patel",
+          "role": "CAD Designer",
+          "text": "CAD file generated and passed 3D inspection. Sent to RPT wax printing.",
+          "createdAt": "2026-09-24T14:20:00.000Z"
+        },
+        {
+          "id": "c-2",
+          "author": "Rajesh Sharma",
+          "role": "Manufacturer",
+          "text": "Casting in 14K white gold completed smoothly. Stones set and polished.",
+          "createdAt": "2026-10-02T16:45:00.000Z"
+        }
+      ],
+      "activity": [
+        {
+          "id": "act-1791889073617",
+          "description": "Stage moved to Completed",
+          "timestamp": "2026-10-13T10:57:53.617Z",
+          "actor": "Admin"
+        },
+        {
+          "id": "act-1",
+          "description": "Order imported from Shopify (#1001)",
+          "timestamp": "2026-09-22T08:14:00.000Z",
+          "actor": "Shopify Webhook"
+        },
+        {
+          "id": "act-2",
+          "description": "Stage moved from New Orders to CAD Design",
+          "timestamp": "2026-09-23T09:30:00.000Z",
+          "actor": "Dhiren Bhagvanbhai Savaliya"
+        },
+        {
+          "id": "act-3",
+          "description": "Stage moved from Factory to Quality Check",
+          "timestamp": "2026-10-08T11:00:00.000Z",
+          "actor": "Rajesh Sharma"
+        },
+        {
+          "id": "act-4",
+          "description": "Stage moved to Shipping",
+          "timestamp": "2026-10-12T15:20:00.000Z",
+          "actor": "Dhiren Bhagvanbhai Savaliya"
+        }
+      ],
+      "createdAt": "2026-09-22T08:14:00.000Z",
+      "updatedAt": "2026-10-13T10:57:53.617Z"
+    }
+  ],
+  "webhookLogs": [
+    {
+      "topic": "admin/orders-sync",
+      "status": "success",
+      "message": "Manual sync executed. Synced orders from jodhaniexport.myshopify.com",
+      "payloadSummary": "Imported count: 0",
+      "id": "wh-1791889763998",
+      "receivedAt": "2026-10-13T11:09:23.998Z"
+    },
+    {
+      "topic": "orders/create (simulated)",
+      "shopifyOrderId": "1791889575154",
+      "status": "success",
+      "message": "Simulated order #4419 successfully ingested.",
+      "payloadSummary": "Sophia Laurent - Pavé Halo Diamond Pendant ($1410)",
+      "id": "wh-1791889575161",
+      "receivedAt": "2026-10-13T11:06:15.161Z"
+    },
+    {
+      "topic": "admin/orders-sync",
+      "status": "success",
+      "message": "Manual sync executed. Synced orders from jodhaniexport.myshopify.com",
+      "payloadSummary": "Imported count: 0",
+      "id": "wh-1791889556160",
+      "receivedAt": "2026-10-13T11:05:56.160Z"
+    },
+    {
+      "topic": "admin/orders-sync",
+      "status": "success",
+      "message": "Manual sync executed. Synced orders from valamdesign.myshopify.com",
+      "payloadSummary": "Imported count: 0",
+      "id": "wh-1791889214649",
+      "receivedAt": "2026-10-13T11:00:14.649Z"
+    },
+    {
+      "topic": "admin/orders-sync",
+      "status": "success",
+      "message": "Manual sync executed. Synced orders from valamdesign.myshopify.com",
+      "payloadSummary": "Imported count: 0",
+      "id": "wh-1791889190238",
+      "receivedAt": "2026-10-13T10:59:50.238Z"
+    },
+    {
+      "topic": "orders/create (simulated)",
+      "shopifyOrderId": "sim-1791888806748",
+      "status": "success",
+      "message": "Simulated order #2156 successfully ingested.",
+      "payloadSummary": "Marcus Vance - Pavé Halo Diamond Pendant ($1400)",
+      "id": "wh-1791888806755",
+      "receivedAt": "2026-10-13T10:53:26.755Z"
+    },
+    {
+      "id": "wh-1",
+      "topic": "orders/create",
+      "shopifyOrderId": "58928371928",
+      "status": "success",
+      "message": "Order #1001 imported into New Orders successfully",
+      "receivedAt": "2026-09-22T08:14:00.000Z",
+      "payloadSummary": "VALAM DESIGN - 14K Pendant ($1,135)"
+    }
+  ]
+}

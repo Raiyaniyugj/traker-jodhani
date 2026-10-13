@@ -1,0 +1,157 @@
+'use client';
+
+import Link from 'next/link';
+import { Order, PipelineStage } from '@/lib/types';
+import { ArrowRight, ChevronRight, Clock, Diamond, ShieldCheck } from 'lucide-react';
+
+interface KanbanBoardProps {
+  stages: PipelineStage[];
+  orders: Order[];
+  onOrderStageChange: (orderId: string, nextStageId: string) => void;
+}
+
+export default function KanbanBoard({
+  stages,
+  orders,
+  onOrderStageChange,
+}: KanbanBoardProps) {
+  const getStageOrders = (stageId: string) => {
+    return orders.filter((o) => o.currentStageId === stageId && o.status !== 'Delivered');
+  };
+
+  const getNextStage = (currentStageId: string): PipelineStage | null => {
+    const sorted = [...stages].sort((a, b) => a.order - b.order);
+    const index = sorted.findIndex((s) => s.id === currentStageId);
+    if (index >= 0 && index < sorted.length - 1) {
+      return sorted[index + 1];
+    }
+    return null;
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'High':
+        return 'text-rose-600 bg-rose-50 border-rose-200';
+      case 'Medium':
+        return 'text-amber-700 bg-amber-50 border-amber-200';
+      case 'Low':
+        return 'text-sky-700 bg-sky-50 border-sky-200';
+      default:
+        return 'text-neutral-600 bg-neutral-100 border-neutral-200';
+    }
+  };
+
+  return (
+    <div className="w-full overflow-x-auto pb-6">
+      <div className="flex gap-4 min-w-[1400px]">
+        {stages.map((stage) => {
+          const stageOrders = getStageOrders(stage.id);
+          const nextStage = getNextStage(stage.id);
+
+          return (
+            <div
+              key={stage.id}
+              className="flex-1 min-w-[260px] max-w-[320px] flex flex-col"
+            >
+              {/* Stage Header */}
+              <div className="flex items-center justify-between pb-3 px-1 text-sm">
+                <span className="font-medium text-neutral-800 flex items-center gap-2">
+                  {stage.name}
+                </span>
+                <span className="text-xs text-neutral-400 font-mono">
+                  {stageOrders.length}
+                </span>
+              </div>
+
+              {/* Column Content */}
+              <div className="bg-neutral-100/60 rounded-xl p-2.5 min-h-[460px] flex flex-col gap-2.5 border border-neutral-200/60">
+                {stageOrders.length === 0 ? (
+                  <div className="h-full min-h-[200px] flex items-center justify-center text-xs text-neutral-400 font-medium">
+                    No orders
+                  </div>
+                ) : (
+                  stageOrders.map((order) => {
+                    const firstItem = order.items[0];
+
+                    return (
+                      <div
+                        key={order.id}
+                        className="bg-white rounded-lg p-3.5 border border-neutral-200 shadow-2xs hover:shadow-md transition group"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <Link
+                            href={`/orders/${order.id}`}
+                            className="font-serif font-semibold text-base text-neutral-900 hover:text-black hover:underline line-clamp-1"
+                          >
+                            {order.orderNumber}
+                          </Link>
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${getPriorityColor(
+                              order.priority
+                            )}`}
+                          >
+                            {order.priority}
+                          </span>
+                        </div>
+
+                        <p className="text-xs text-neutral-500 mt-0.5">
+                          {order.customer.name}
+                        </p>
+
+                        {firstItem && (
+                          <div className="mt-2.5 text-xs text-neutral-700 bg-neutral-50 p-2 rounded border border-neutral-100">
+                            <p className="font-medium truncate">{firstItem.title}</p>
+                            <p className="text-[11px] text-neutral-500 mt-0.5">
+                              {firstItem.metalType} {firstItem.metalColor} · {firstItem.diamondSize}ct
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="mt-3 flex items-center justify-between text-xs pt-2.5 border-t border-neutral-100">
+                          <span className="font-semibold text-neutral-900 font-mono">
+                            ${order.total.toLocaleString()}
+                          </span>
+
+                          {order.dueDate && (
+                            <span className="text-[11px] text-neutral-400 flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {new Date(order.dueDate).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Quick Advance / Action */}
+                        <div className="mt-3 pt-2 flex items-center justify-between gap-2">
+                          <Link
+                            href={`/orders/${order.id}`}
+                            className="text-[11px] text-neutral-500 hover:text-black font-medium flex items-center gap-0.5"
+                          >
+                            Details <ChevronRight className="w-3 h-3" />
+                          </Link>
+
+                          {nextStage && (
+                            <button
+                              onClick={() => onOrderStageChange(order.id, nextStage.id)}
+                              className="text-[11px] px-2 py-1 bg-neutral-900 hover:bg-black text-white rounded transition flex items-center gap-1 font-medium shadow-xs"
+                              title={`Advance to ${nextStage.name}`}
+                            >
+                              <span>Next</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

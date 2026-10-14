@@ -106,8 +106,11 @@ export default function SettingsPage() {
     setSaving(true);
     setMessage(null);
 
-    // Clean domain
-    const cleanDomain = shopDomain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+    // Clean domain (auto-add .myshopify.com if just store name was typed)
+    let cleanDomain = shopDomain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
+    if (cleanDomain && !cleanDomain.includes('.')) {
+      cleanDomain = `${cleanDomain}.myshopify.com`;
+    }
 
     try {
       const res = await fetch('/api/shopify/test', {
@@ -273,11 +276,11 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              {settings?.shopify?.isConnected && settings.shopify.shopDomain ? (
+              {settings?.shopify?.isConnected ? (
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    Store Connected
+                    {settings.shopify.shopDomain ? `Connected: ${settings.shopify.shopDomain}` : 'Webhook Active & Listening'}
                   </span>
                   <button
                     type="button"

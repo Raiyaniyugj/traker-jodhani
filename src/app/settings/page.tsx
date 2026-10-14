@@ -414,17 +414,20 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-xs font-medium text-neutral-500 mb-1.5">
-                  Webhook Signing Secret
+                  Webhook Signing Secret{' '}
+                  <span className="text-emerald-600 font-semibold">
+                    (100% Optional — Leave BLANK if you can&apos;t find it)
+                  </span>
                 </label>
                 <input
                   type="password"
                   value={webhookSecret}
                   onChange={(e) => setWebhookSecret(e.target.value)}
-                  placeholder="shpss_..."
+                  placeholder="Optional — leave blank"
                   className="w-full rounded-md border border-neutral-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black font-mono bg-white"
                 />
                 <p className="text-[11px] text-neutral-400 mt-1">
-                  Found in Shopify Admin under Settings → Notifications → Webhooks signing secret.
+                  You do NOT need this to receive Shopify orders. You can leave it empty.
                 </p>
               </div>
 

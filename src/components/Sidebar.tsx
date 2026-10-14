@@ -62,22 +62,10 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Customer Tracking Demonstration / Footer info */}
-      <div className="pt-4 border-t border-neutral-100 px-2 space-y-2">
-        <Link
-          href="/track/6a4dc73d-2dc6-4e67-ba26-5769e3e55926"
-          target="_blank"
-          className="flex items-center justify-between text-xs text-neutral-500 hover:text-black px-2 py-1.5 rounded transition hover:bg-neutral-50"
-        >
-          <span className="flex items-center gap-1.5">
-            <ExternalLink className="w-3.5 h-3.5 text-neutral-400" />
-            Live Customer Link
-          </span>
-          <span className="text-[10px] bg-neutral-200 text-neutral-700 px-1.5 py-0.5 rounded font-mono">Demo</span>
-        </Link>
-        <p className="text-[11px] text-neutral-400 px-2">
-          Trackerz v1.0 · Shopify Sync Active
-        </p>
+      {/* Production Workspace Info */}
+      <div className="pt-4 border-t border-neutral-100 px-3 space-y-1 text-[11px] text-neutral-400">
+        <p className="font-medium text-neutral-600">Trackerz Jewelry Atelier</p>
+        <p>Production Ready · Cloudflare D1</p>
       </div>
     </aside>
   );

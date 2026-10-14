@@ -39,7 +39,7 @@ export function verifyShopifyWebhook(
 /**
  * Maps Shopify raw Order payload to Trackerz internal Order
  */
-export function parseShopifyOrderPayload(payload: any): Order {
+export function parseShopifyOrderPayload(payload: any, userId?: string): Order {
   const shopifyOrderId = String(payload.id || '');
   const orderNumber = payload.name || (payload.order_number ? `#${payload.order_number}` : `ORD-${Math.floor(1000 + Math.random() * 9000)}`);
   
@@ -159,8 +159,7 @@ export function parseShopifyOrderPayload(payload: any): Order {
   const baseProductionCost = Math.round(total * 0.45);
   const profit = Math.round(total - baseProductionCost - shippingFee);
 
-  const stages = db.getStages();
-  const firstStage = stages[0]?.id || 'stage-1';
+  const firstStage = userId ? `stg_${userId}_1` : 'stage-1';
 
   return {
     id: `ord-shopify-${shopifyOrderId || Date.now()}`,
@@ -194,7 +193,7 @@ export function parseShopifyOrderPayload(payload: any): Order {
     currentStageId: firstStage,
     priority: total > 2000 ? 'High' : 'Medium',
     status: 'Active',
-    progressPercent: Math.round((1 / (stages.length || 9)) * 100),
+    progressPercent: 11,
     dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     notesFromCustomer: payload.note || 'No notes from customer.',
     internalNotes: `Auto-imported from Shopify store. Ready for CAD design.`,

@@ -7,9 +7,9 @@ import { useRouter } from 'next/navigation';
 export default function SignupPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    companyName: 'Harper & Stones',
-    fullName: 'Jane Owner',
-    phone: '9876543210',
+    companyName: '',
+    fullName: '',
+    phone: '',
     email: '',
     password: '',
   });
@@ -75,15 +75,15 @@ export default function SignupPage() {
         >
           <div>
             <label className="block text-xs font-medium text-neutral-500 mb-1">
-              Company Name
+              Company / Atelier Name
             </label>
             <input
               required
               name="companyName"
-              placeholder="Harper & Stones"
+              placeholder="e.g. Aurum Fine Jewelry"
               value={formData.companyName}
               onChange={handleChange}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-neutral-400"
             />
           </div>
 
@@ -94,10 +94,10 @@ export default function SignupPage() {
             <input
               required
               name="fullName"
-              placeholder="Jane Owner"
+              placeholder="e.g. Julian Hayes"
               value={formData.fullName}
               onChange={handleChange}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-neutral-400"
             />
           </div>
 
@@ -120,15 +120,15 @@ export default function SignupPage() {
                 placeholder="9876543210"
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full rounded-r-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+                className="w-full rounded-r-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-neutral-400"
               />
             </div>
-            <p className="text-[11px] text-neutral-400 mt-1">Indian mobile numbers only</p>
+            <p className="text-[11px] text-neutral-400 mt-1">10-digit Indian mobile number</p>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-neutral-500 mb-1">
-              Email
+              Email Address
             </label>
             <input
               type="email"
@@ -137,7 +137,7 @@ export default function SignupPage() {
               placeholder="you@yourbusiness.com"
               value={formData.email}
               onChange={handleChange}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-neutral-400"
             />
           </div>
 
@@ -150,9 +150,10 @@ export default function SignupPage() {
               required
               minLength={6}
               name="password"
+              placeholder="Minimum 6 characters"
               value={formData.password}
               onChange={handleChange}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-neutral-400"
             />
           </div>
 

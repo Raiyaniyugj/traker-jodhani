@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { useRouter } from 'next/navigation';
 import { PipelineStage, Role } from '@/lib/types';
 import { GripVertical, Plus, Check, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 
 const AVAILABLE_ROLES: Role[] = ['Admin', 'CAD Designer', 'Manufacturer', 'QC Manager'];
 
 export default function PipelinePage() {
+  const router = useRouter();
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [loading, setLoading] = useState(true);
   const [newStepName, setNewStepName] = useState('');
@@ -27,6 +29,10 @@ export default function PipelinePage() {
     try {
       setLoading(true);
       const res = await fetch('/api/pipeline');
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setStages(data.stages || []);

@@ -1,30 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
+import { getD1Database, d1Store } from '@/lib/d1';
+import { getSessionUser } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
-  const sessionCookie = req.cookies.get('trackerz_session')?.value;
-  const settings = db.getSettings();
-
-  if (sessionCookie) {
-    try {
-      const parsed = JSON.parse(sessionCookie);
-      return NextResponse.json({
-        user: parsed,
-        settings,
-      });
-    } catch (e) {
-      // ignore
-    }
+  const session = getSessionUser(req);
+  if (!session) {
+    return NextResponse.json({ user: null }, { status: 401 });
   }
 
-  // Return default admin profile
+  const workspaceId = session.ownerId || session.userId;
+  const d1 = getD1Database();
+
+  let settings = db.getSettings(workspaceId);
+  if (d1) {
+    const d1Settings = await d1Store.getSettings(d1, workspaceId);
+    if (d1Settings) settings = d1Settings;
+  }
+
   return NextResponse.json({
-    user: {
-      id: 'user-1',
-      name: settings.ownerName || 'Dhiren Bhagvanbhai Savaliya',
-      email: settings.email || 'valamdesignindia+0@gmail.com',
-      role: 'Admin',
-    },
+    user: session,
     settings,
   });
 }

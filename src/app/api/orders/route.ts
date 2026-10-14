@@ -1,24 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
 import { getD1Database, d1Store } from '@/lib/d1';
+import { getSessionUser } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
+    const session = getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
+    }
+
+    const workspaceId = session.ownerId || session.userId;
     const d1 = getD1Database();
-    let orders = db.getOrders();
-    let stages = db.getStages();
-    let settings = db.getSettings();
+
+    let orders = db.getOrders(workspaceId);
+    let stages = db.getStages(workspaceId);
+    let settings = db.getSettings(workspaceId);
 
     if (d1) {
-      const d1Orders = await d1Store.getOrders(d1);
-      if (d1Orders && d1Orders.length > 0) {
-        orders = d1Orders;
-      }
-      const d1Stages = await d1Store.getStages(d1);
+      const d1Orders = await d1Store.getOrders(d1, workspaceId);
+      orders = d1Orders;
+
+      const d1Stages = await d1Store.getStages(d1, workspaceId);
       if (d1Stages && d1Stages.length > 0) {
         stages = d1Stages;
       }
-      const d1Settings = await d1Store.getSettings(d1);
+      const d1Settings = await d1Store.getSettings(d1, workspaceId);
       if (d1Settings) {
         settings = d1Settings;
       }
@@ -42,12 +49,19 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error: any) {
+    console.error('Orders GET error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const session = getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
+    }
+
+    const workspaceId = session.ownerId || session.userId;
     const body = await req.json();
     const {
       customerName,
@@ -71,20 +85,20 @@ export async function POST(req: NextRequest) {
     } = body;
 
     const d1 = getD1Database();
-    let stages = db.getStages();
+    let stages = db.getStages(workspaceId);
     if (d1) {
-      const d1Stages = await d1Store.getStages(d1);
+      const d1Stages = await d1Store.getStages(d1, workspaceId);
       if (d1Stages && d1Stages.length > 0) stages = d1Stages;
     }
 
-    const stageId = initialStageId || stages[0]?.id || 'stage-1';
-    const subtotal = parseFloat(price) || 1000;
+    const stageId = initialStageId || stages[0]?.id || `stg_${workspaceId}_1`;
+    const subtotal = parseFloat(price) || 0;
     const shipping = parseFloat(shippingFee) || 0;
     const total = subtotal + shipping;
     const cost = parseFloat(baseProductionCost) || Math.round(subtotal * 0.45);
     const profit = Math.round(total - cost - shipping);
 
-    const newOrder = db.createOrder({
+    const newOrder = db.createOrder(workspaceId, {
       orderNumber: body.orderNumber || `#${Math.floor(1000 + Math.random() * 9000)}`,
       source: 'manual',
       customer: {
@@ -109,17 +123,17 @@ export async function POST(req: NextRequest) {
       items: [
         {
           id: `item-${Date.now()}`,
-          title: productTitle || 'Custom Jewelry Piece',
-          productType: productType || 'Pendant',
-          variantTitle: `${metalType || '14K'} ${metalColor || 'White gold'} / ${diamondSize || '1.00'}ct`,
-          metalType: metalType || '14K',
-          metalColor: metalColor || 'White gold',
+          title: productTitle || 'Custom Fine Jewelry Piece',
+          productType: productType || 'Ring',
+          metalType: metalType || '18K',
+          metalColor: metalColor || 'Yellow Gold',
           diamondShape: diamondShape || 'Round',
-          diamondSize: diamondSize || '1.00',
+          diamondSize: diamondSize || '1.00ct',
           chainLength: chainLength || '—',
           customEngraving: customEngraving || '',
           quantity: 1,
           price: subtotal,
+          imageUrl: '',
         },
       ],
       subtotal,
@@ -130,21 +144,20 @@ export async function POST(req: NextRequest) {
       currentStageId: stageId,
       priority: priority || 'Medium',
       status: 'Active',
-      assignedTo: body.assignedTo || '',
-      dueDate: dueDate || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      notesFromCustomer: body.notesFromCustomer || 'No notes from customer.',
+      assignedTo: body.assignedTo || session.name || 'Unassigned',
+      dueDate: dueDate || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+      notesFromCustomer: body.notesFromCustomer || '',
       internalNotes: internalNotes || '',
-      trackingNumber: '',
       trackingCarrier: 'FedEx Priority',
-      trackingUrl: '',
     });
 
     if (d1) {
-      await d1Store.saveOrder(d1, newOrder);
+      await d1Store.saveOrder(d1, { ...newOrder, userId: workspaceId });
     }
 
-    return NextResponse.json({ success: true, order: newOrder }, { status: 201 });
+    return NextResponse.json({ success: true, order: newOrder });
   } catch (error: any) {
+    console.error('Orders POST error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

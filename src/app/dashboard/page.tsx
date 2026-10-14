@@ -13,14 +13,16 @@ import {
   RefreshCw,
   Sparkles,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Order, PipelineStage, WorkspaceSettings } from '@/lib/types';
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [view, setView] = useState<'kanban' | 'table'>('kanban');
   const [orders, setOrders] = useState<Order[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
-  const [metrics, setMetrics] = useState({ totalRevenue: 1075, totalProfit: 575 });
+  const [metrics, setMetrics] = useState({ totalRevenue: 0, totalProfit: 0 });
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -46,6 +48,10 @@ export default function DashboardPage() {
     try {
       if (!silent) setLoading(true);
       const res = await fetch('/api/orders');
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setOrders(data.orders || []);

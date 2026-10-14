@@ -11,9 +11,9 @@ import {
 import bundledDatabaseData from '../../data/database.json';
 
 interface DatabaseData {
-  settings: WorkspaceSettings;
+  settings: Record<string, WorkspaceSettings>;
   stages: PipelineStage[];
-  users: User[];
+  users: (User & { password?: string })[];
   orders: Order[];
   webhookLogs: WebhookLog[];
 }
@@ -21,189 +21,42 @@ interface DatabaseData {
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'database.json');
 
-const DEFAULT_STAGES: PipelineStage[] = [
-  { id: 'stage-1', name: 'New Orders', order: 1, roles: ['Admin'] },
-  { id: 'stage-2', name: 'CAD Design', order: 2, roles: ['Admin', 'CAD Designer'] },
-  { id: 'stage-3', name: 'RPT', order: 3, roles: ['Admin'] },
-  { id: 'stage-4', name: 'Casting', order: 4, roles: ['Admin', 'Manufacturer'] },
-  { id: 'stage-5', name: 'Factory', order: 5, roles: ['Admin', 'Manufacturer'] },
-  { id: 'stage-6', name: 'Quality Check', order: 6, roles: ['Admin', 'CAD Designer', 'Manufacturer'] },
-  { id: 'stage-7', name: 'Packaging', order: 7, roles: ['Admin', 'Manufacturer'] },
-  { id: 'stage-8', name: 'Shipping', order: 8, roles: ['Admin'] },
-  { id: 'stage-9', name: 'Completed', order: 9, roles: ['Admin'] },
-];
-
-const DEFAULT_USERS: User[] = [
-  {
-    id: 'user-1',
-    name: 'Dhiren Bhagvanbhai Savaliya',
-    email: 'valamdesignindia+0@gmail.com',
-    role: 'Admin',
-    createdAt: '2026-09-01T10:00:00.000Z',
-  },
-  {
-    id: 'user-2',
-    name: 'Amit Patel',
-    email: 'amit.cad@example.com',
-    role: 'CAD Designer',
-    createdAt: '2026-09-05T11:00:00.000Z',
-  },
-  {
-    id: 'user-3',
-    name: 'Rajesh Sharma',
-    email: 'rajesh.casting@example.com',
-    role: 'Manufacturer',
-    createdAt: '2026-09-10T14:30:00.000Z',
-  },
-];
-
-const DEFAULT_ORDER: Order = {
-  id: '6a4dc73d-2dc6-4e67-ba26-5769e3e55926',
-  orderNumber: 'VALAM DESIGN',
-  shopifyOrderId: 'gid://shopify/Order/58928371928',
-  shopifyOrderNumber: '#1001',
-  source: 'shopify',
-  customer: {
-    name: 'Dhiren Bhagvanbhai Savaliya',
-    email: 'valamdesignindia@gmail.com',
-    phone: '+919930022492',
-  },
-  shippingAddress: {
-    address1: '402, Royal Diamond Plaza, Mini Bazar',
-    city: 'Surat',
-    province: 'Gujarat',
-    zip: '395006',
-    country: 'India',
-  },
-  billingAddress: {
-    address1: '402, Royal Diamond Plaza, Mini Bazar',
-    city: 'Surat',
-    province: 'Gujarat',
-    zip: '395006',
-    country: 'India',
-  },
-  items: [
-    {
-      id: 'item-1',
-      title: 'VALAM DESIGN',
-      productType: 'Pendant',
-      variantTitle: '14K White Gold / 1.20ct',
-      sku: 'VD-PND-001',
-      metalType: '14K',
-      metalColor: 'White gold',
-      diamondShape: 'Round',
-      diamondSize: '1.20',
-      chainLength: '—',
-      customEngraving: "14K Stamping & engraving Dhiren'",
-      quantity: 1,
-      price: 1075,
-      imageUrl: '',
-    },
-  ],
-  subtotal: 1075,
-  shippingFee: 60,
-  total: 1135,
-  baseProductionCost: 500,
-  profit: 575,
-  currentStageId: 'stage-8', // Shipping
-  priority: 'High',
-  status: 'Active',
-  progressPercent: 88,
-  assignedTo: 'Rajesh Sharma',
-  dueDate: '2026-10-18',
-  notesFromCustomer: 'No notes from customer.',
-  internalNotes: 'Rush order for upcoming exhibition delivery. Priority laser engraving confirmed.',
-  trackingNumber: '',
-  trackingCarrier: 'FedEx Priority',
-  trackingUrl: '',
-  customerTrackingToken: 'tr_valam_928174',
-  gallery: [],
-  comments: [
-    {
-      id: 'c-1',
-      author: 'Amit Patel',
-      role: 'CAD Designer',
-      text: 'CAD file generated and passed 3D inspection. Sent to RPT wax printing.',
-      createdAt: '2026-09-24T14:20:00.000Z',
-    },
-    {
-      id: 'c-2',
-      author: 'Rajesh Sharma',
-      role: 'Manufacturer',
-      text: 'Casting in 14K white gold completed smoothly. Stones set and polished.',
-      createdAt: '2026-10-02T16:45:00.000Z',
-    },
-  ],
-  activity: [
-    {
-      id: 'act-1',
-      description: 'Order imported from Shopify (#1001)',
-      timestamp: '2026-09-22T08:14:00.000Z',
-      actor: 'Shopify Webhook',
-    },
-    {
-      id: 'act-2',
-      description: 'Stage moved from New Orders to CAD Design',
-      timestamp: '2026-09-23T09:30:00.000Z',
-      actor: 'Dhiren Bhagvanbhai Savaliya',
-    },
-    {
-      id: 'act-3',
-      description: 'Stage moved from Factory to Quality Check',
-      timestamp: '2026-10-08T11:00:00.000Z',
-      actor: 'Rajesh Sharma',
-    },
-    {
-      id: 'act-4',
-      description: 'Stage moved to Shipping',
-      timestamp: '2026-10-12T15:20:00.000Z',
-      actor: 'Dhiren Bhagvanbhai Savaliya',
-    },
-  ],
-  createdAt: '2026-09-22T08:14:00.000Z',
-  updatedAt: '2026-10-12T15:20:00.000Z',
-};
-
-const DEFAULT_SETTINGS: WorkspaceSettings = {
-  companyName: 'VALAM DESIGN',
-  ownerName: 'Dhiren Bhagvanbhai Savaliya',
-  email: 'valamdesignindia+0@gmail.com',
-  phone: '+919930022492',
-  currency: '$',
-  shopify: {
-    shopDomain: 'valamdesign.myshopify.com',
-    webhookSecret: 'shpss_9f81a7b03e2c4d5e89a1b2c3d4e5f6',
-    adminAccessToken: 'shpat_demo_secret_token',
-    isConnected: true,
-    lastSyncAt: '2026-10-12T15:00:00.000Z',
-    autoSync: true,
-  },
-};
-
-const DEFAULT_WEBHOOK_LOGS: WebhookLog[] = [
-  {
-    id: 'wh-1',
-    topic: 'orders/create',
-    shopifyOrderId: '58928371928',
-    status: 'success',
-    message: 'Order #1001 imported into New Orders successfully',
-    receivedAt: '2026-09-22T08:14:00.000Z',
-    payloadSummary: 'VALAM DESIGN - 14K Pendant ($1,135)',
-  },
+export const TEMPLATE_STAGES = [
+  { name: 'New Orders', order: 1, roles: ['Admin'] as Role[] },
+  { name: 'CAD Design', order: 2, roles: ['Admin', 'CAD Designer'] as Role[] },
+  { name: 'RPT', order: 3, roles: ['Admin'] as Role[] },
+  { name: 'Casting', order: 4, roles: ['Admin', 'Manufacturer'] as Role[] },
+  { name: 'Factory', order: 5, roles: ['Admin', 'Manufacturer'] as Role[] },
+  { name: 'Quality Check', order: 6, roles: ['Admin', 'CAD Designer', 'Manufacturer'] as Role[] },
+  { name: 'Packaging', order: 7, roles: ['Admin', 'Manufacturer'] as Role[] },
+  { name: 'Shipping', order: 8, roles: ['Admin'] as Role[] },
+  { name: 'Completed', order: 9, roles: ['Admin'] as Role[] },
 ];
 
 function initDatabase(): DatabaseData {
   try {
     if (fs.existsSync(DB_FILE)) {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return {
+        settings: parsed.settings || {},
+        stages: Array.isArray(parsed.stages) ? parsed.stages : [],
+        users: Array.isArray(parsed.users) ? parsed.users : [],
+        orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+        webhookLogs: Array.isArray(parsed.webhookLogs) ? parsed.webhookLogs : [],
+      };
     }
   } catch (error) {
     console.warn('Filesystem read not available or failed, using bundled data:', error);
   }
 
-  // Use statically bundled database.json as the baseline for serverless/Cloudflare Workers
-  const initialData: DatabaseData = JSON.parse(JSON.stringify(bundledDatabaseData));
+  const initialData: DatabaseData = {
+    settings: (bundledDatabaseData as any).settings || {},
+    stages: (bundledDatabaseData as any).stages || [],
+    users: (bundledDatabaseData as any).users || [],
+    orders: (bundledDatabaseData as any).orders || [],
+    webhookLogs: (bundledDatabaseData as any).webhookLogs || [],
+  };
 
   try {
     if (!fs.existsSync(DATA_DIR)) {
@@ -239,61 +92,229 @@ function getDB(): DatabaseData {
 }
 
 export const db = {
-  // Settings
-  getSettings(): WorkspaceSettings {
-    return getDB().settings;
-  },
-  updateSettings(partial: Partial<WorkspaceSettings>): WorkspaceSettings {
+  // --- USERS & AUTH ---
+  getUserByEmail(email: string): (User & { password?: string }) | undefined {
     const current = getDB();
-    current.settings = { ...current.settings, ...partial };
-    saveDatabase(current);
-    return current.settings;
-  },
-  updateShopifyConfig(shopify: Partial<WorkspaceSettings['shopify']>): WorkspaceSettings {
-    const current = getDB();
-    current.settings.shopify = { ...current.settings.shopify, ...shopify };
-    saveDatabase(current);
-    return current.settings;
+    const clean = email.toLowerCase().trim();
+    return current.users.find((u) => u.email.toLowerCase().trim() === clean);
   },
 
-  // Stages
-  getStages(): PipelineStage[] {
-    return getDB().stages.sort((a, b) => a.order - b.order);
+  getUserById(id: string): (User & { password?: string }) | undefined {
+    return getDB().users.find((u) => u.id === id);
   },
-  saveStages(stages: PipelineStage[]): PipelineStage[] {
+
+  addUser(
+    name: string,
+    email: string,
+    role: Role,
+    password?: string,
+    ownerId?: string
+  ): User {
     const current = getDB();
-    current.stages = stages.map((s, idx) => ({ ...s, order: idx + 1 }));
+    const cleanEmail = email.toLowerCase().trim();
+    const existingIndex = current.users.findIndex((u) => u.email.toLowerCase().trim() === cleanEmail);
+
+    const id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const newUser: User & { password?: string } = {
+      id,
+      ownerId: ownerId || id,
+      name: name.trim(),
+      email: cleanEmail,
+      role,
+      password: password || '',
+      createdAt: new Date().toISOString(),
+    };
+
+    if (existingIndex >= 0) {
+      current.users[existingIndex] = newUser;
+    } else {
+      current.users.push(newUser);
+    }
+
     saveDatabase(current);
-    return current.stages;
+    return {
+      id: newUser.id,
+      ownerId: newUser.ownerId,
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role,
+      createdAt: newUser.createdAt,
+    };
   },
-  addStage(name: string, roles: Role[]): PipelineStage {
+
+  getUsers(ownerId: string): User[] {
     const current = getDB();
+    return current.users
+      .filter((u) => u.ownerId === ownerId || u.id === ownerId)
+      .map(({ password, ...rest }) => rest);
+  },
+
+  // Initialize a new user workspace with default settings & stages
+  initUserWorkspace(
+    userId: string,
+    fullName: string,
+    email: string,
+    companyName: string = '',
+    phone: string = ''
+  ): { settings: WorkspaceSettings; stages: PipelineStage[] } {
+    const current = getDB();
+
+    const newSettings: WorkspaceSettings = {
+      userId,
+      companyName: companyName.trim() || `${fullName}'s Atelier`,
+      ownerName: fullName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      currency: '$',
+      shopify: {
+        shopDomain: '',
+        webhookSecret: '',
+        adminAccessToken: '',
+        isConnected: false,
+        lastSyncAt: '',
+        autoSync: true,
+      },
+    };
+    current.settings[userId] = newSettings;
+
+    // Filter out any leftover stages for this user
+    current.stages = current.stages.filter((s) => s.userId !== userId);
+
+    // Create fresh template stages for this user
+    const newStages: PipelineStage[] = TEMPLATE_STAGES.map((t, idx) => ({
+      id: `stage-${userId}-${idx + 1}`,
+      userId,
+      name: t.name,
+      order: t.order,
+      roles: t.roles,
+    }));
+    current.stages.push(...newStages);
+
+    saveDatabase(current);
+    return { settings: newSettings, stages: newStages };
+  },
+
+  // --- SETTINGS ---
+  getSettings(userId: string): WorkspaceSettings {
+    const current = getDB();
+    if (current.settings[userId]) {
+      return current.settings[userId];
+    }
+    // Return a default workspace template if none found yet
+    return {
+      userId,
+      companyName: 'My Jewelry Atelier',
+      ownerName: '',
+      email: '',
+      phone: '',
+      currency: '$',
+      shopify: {
+        shopDomain: '',
+        webhookSecret: '',
+        adminAccessToken: '',
+        isConnected: false,
+        lastSyncAt: '',
+        autoSync: true,
+      },
+    };
+  },
+
+  getSettingsByShopDomain(shopDomain: string): { userId: string; settings: WorkspaceSettings } | null {
+    const current = getDB();
+    const clean = shopDomain.toLowerCase().trim();
+    for (const [uid, s] of Object.entries(current.settings)) {
+      if (s.shopify?.shopDomain && s.shopify.shopDomain.toLowerCase().trim() === clean) {
+        return { userId: uid, settings: s };
+      }
+    }
+    return null;
+  },
+
+  updateSettings(userId: string, partial: Partial<WorkspaceSettings>): WorkspaceSettings {
+    const current = getDB();
+    const existing = this.getSettings(userId);
+    const updated: WorkspaceSettings = {
+      ...existing,
+      ...partial,
+      userId,
+      shopify: {
+        ...existing.shopify,
+        ...(partial.shopify || {}),
+      },
+    };
+    current.settings[userId] = updated;
+    saveDatabase(current);
+    return updated;
+  },
+
+  updateShopifyConfig(userId: string, shopify: Partial<WorkspaceSettings['shopify']>): WorkspaceSettings {
+    const current = getDB();
+    const existing = this.getSettings(userId);
+    existing.shopify = { ...existing.shopify, ...shopify };
+    current.settings[userId] = existing;
+    saveDatabase(current);
+    return existing;
+  },
+
+  // --- STAGES ---
+  getStages(userId: string): PipelineStage[] {
+    const current = getDB();
+    const userStages = current.stages.filter((s) => s.userId === userId);
+    if (userStages.length > 0) {
+      return userStages.sort((a, b) => a.order - b.order);
+    }
+    // Initialize if none exist
+    const initialStages: PipelineStage[] = TEMPLATE_STAGES.map((t, idx) => ({
+      id: `stage-${userId}-${idx + 1}`,
+      userId,
+      name: t.name,
+      order: t.order,
+      roles: t.roles,
+    }));
+    current.stages.push(...initialStages);
+    saveDatabase(current);
+    return initialStages;
+  },
+
+  saveStages(userId: string, stages: PipelineStage[]): PipelineStage[] {
+    const current = getDB();
+    current.stages = current.stages.filter((s) => s.userId !== userId);
+    const updated = stages.map((s, idx) => ({ ...s, userId, order: idx + 1 }));
+    current.stages.push(...updated);
+    saveDatabase(current);
+    return updated;
+  },
+
+  addStage(userId: string, name: string, roles: Role[]): PipelineStage {
+    const current = getDB();
+    const userStages = current.stages.filter((s) => s.userId === userId);
     const newStage: PipelineStage = {
       id: `stage-${Date.now()}`,
+      userId,
       name,
-      order: current.stages.length + 1,
+      order: userStages.length + 1,
       roles,
     };
     current.stages.push(newStage);
     saveDatabase(current);
     return newStage;
   },
-  deleteStage(id: string): boolean {
+
+  deleteStage(userId: string, id: string): boolean {
     const current = getDB();
-    const index = current.stages.findIndex((s) => s.id === id);
+    const index = current.stages.findIndex((s) => s.id === id && s.userId === userId);
     if (index === -1) return false;
 
     current.stages.splice(index, 1);
-    // Re-index consecutive orders
-    current.stages.forEach((s, idx) => {
+    const remaining = current.stages.filter((s) => s.userId === userId);
+    remaining.forEach((s, idx) => {
       s.order = idx + 1;
     });
 
-    // Re-assign any existing orders on this stage to the first stage
-    if (current.stages.length > 0) {
-      const fallbackStageId = current.stages[0].id;
+    if (remaining.length > 0) {
+      const fallbackStageId = remaining[0].id;
       current.orders.forEach((o) => {
-        if (o.currentStageId === id) {
+        if (o.userId === userId && o.currentStageId === id) {
           o.currentStageId = fallbackStageId;
         }
       });
@@ -303,40 +324,37 @@ export const db = {
     return true;
   },
 
-  // Users
-  getUsers(): User[] {
-    return getDB().users;
-  },
-  addUser(name: string, email: string, role: Role): User {
+  // --- ORDERS ---
+  getOrders(userId: string): Order[] {
     const current = getDB();
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name,
-      email,
-      role,
-      createdAt: new Date().toISOString(),
-    };
-    current.users.push(newUser);
-    saveDatabase(current);
-    return newUser;
+    return current.orders.filter((o) => o.userId === userId);
   },
 
-  // Orders
-  getOrders(): Order[] {
-    return getDB().orders;
-  },
-  getOrderById(id: string): Order | undefined {
-    return getDB().orders.find((o) => o.id === id || o.customerTrackingToken === id);
-  },
-  createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 'updatedAt' | 'customerTrackingToken' | 'gallery' | 'comments' | 'activity' | 'progressPercent'>): Order {
+  getOrderById(id: string, userId?: string): Order | undefined {
     const current = getDB();
-    const stages = current.stages.sort((a, b) => a.order - b.order);
+    if (userId) {
+      return current.orders.find((o) => (o.id === id || o.customerTrackingToken === id) && o.userId === userId);
+    }
+    // Public customer tracking view
+    return current.orders.find((o) => o.id === id || o.customerTrackingToken === id);
+  },
+
+  createOrder(
+    userId: string,
+    orderData: Omit<
+      Order,
+      'id' | 'createdAt' | 'updatedAt' | 'customerTrackingToken' | 'gallery' | 'comments' | 'activity' | 'progressPercent'
+    >
+  ): Order {
+    const current = getDB();
+    const stages = this.getStages(userId);
     const stageIndex = stages.findIndex((s) => s.id === orderData.currentStageId);
     const progressPercent = stageIndex >= 0 ? Math.round(((stageIndex + 1) / stages.length) * 100) : 10;
 
     const newOrder: Order = {
       ...orderData,
       id: `ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      userId,
       customerTrackingToken: `tr_${Math.random().toString(36).substring(2, 10)}`,
       progressPercent,
       gallery: [],
@@ -357,13 +375,19 @@ export const db = {
     saveDatabase(current);
     return newOrder;
   },
-  updateOrder(id: string, updates: Partial<Order>, actorName: string = 'Admin'): Order | null {
+
+  updateOrder(
+    userId: string,
+    id: string,
+    updates: Partial<Order>,
+    actorName: string = 'Admin'
+  ): Order | null {
     const current = getDB();
-    const index = current.orders.findIndex((o) => o.id === id);
+    const index = current.orders.findIndex((o) => o.id === id && o.userId === userId);
     if (index === -1) return null;
 
     const existing = current.orders[index];
-    const stages = current.stages.sort((a, b) => a.order - b.order);
+    const stages = this.getStages(userId);
 
     let progressPercent = existing.progressPercent;
     if (updates.currentStageId && updates.currentStageId !== existing.currentStageId) {
@@ -378,8 +402,10 @@ export const db = {
         actor: actorName,
       });
 
-      // If moved to completed/delivered stage, update status
-      if (targetStage?.name.toLowerCase().includes('completed') || targetStage?.name.toLowerCase().includes('delivered')) {
+      if (
+        targetStage?.name.toLowerCase().includes('completed') ||
+        targetStage?.name.toLowerCase().includes('delivered')
+      ) {
         updates.status = 'Delivered';
       }
     }
@@ -404,9 +430,10 @@ export const db = {
     saveDatabase(current);
     return updated;
   },
-  addComment(orderId: string, author: string, role: Role, text: string): Order | null {
+
+  addComment(id: string, author: string, role: Role, text: string): Order | null {
     const current = getDB();
-    const order = current.orders.find((o) => o.id === orderId);
+    const order = current.orders.find((o) => o.id === id);
     if (!order) return null;
 
     order.comments.push({
@@ -420,9 +447,15 @@ export const db = {
     saveDatabase(current);
     return order;
   },
-  addMedia(orderId: string, title: string, url: string, type: 'cad' | 'casting' | 'qc' | 'general'): Order | null {
+
+  addMedia(
+    id: string,
+    title: string,
+    url: string,
+    type: 'cad' | 'casting' | 'qc' | 'general'
+  ): Order | null {
     const current = getDB();
-    const order = current.orders.find((o) => o.id === orderId);
+    const order = current.orders.find((o) => o.id === id);
     if (!order) return null;
 
     order.gallery.push({
@@ -442,10 +475,11 @@ export const db = {
     saveDatabase(current);
     return order;
   },
-  deleteOrder(id: string): boolean {
+
+  deleteOrder(userId: string, id: string): boolean {
     const current = getDB();
     const initialLen = current.orders.length;
-    current.orders = current.orders.filter((o) => o.id !== id);
+    current.orders = current.orders.filter((o) => !(o.id === id && o.userId === userId));
     if (current.orders.length !== initialLen) {
       saveDatabase(current);
       return true;
@@ -453,19 +487,22 @@ export const db = {
     return false;
   },
 
-  // Webhooks
-  getWebhookLogs(): WebhookLog[] {
-    return getDB().webhookLogs;
+  // --- WEBHOOK LOGS ---
+  getWebhookLogs(userId: string): WebhookLog[] {
+    const current = getDB();
+    return current.webhookLogs.filter((w) => w.userId === userId);
   },
-  addWebhookLog(log: Omit<WebhookLog, 'id' | 'receivedAt'>): WebhookLog {
+
+  addWebhookLog(userId: string, log: Omit<WebhookLog, 'id' | 'receivedAt'>): WebhookLog {
     const current = getDB();
     const newLog: WebhookLog = {
       ...log,
       id: `wh-${Date.now()}`,
+      userId,
       receivedAt: new Date().toISOString(),
     };
     current.webhookLogs.unshift(newLog);
-    if (current.webhookLogs.length > 50) {
+    if (current.webhookLogs.length > 100) {
       current.webhookLogs.pop();
     }
     saveDatabase(current);

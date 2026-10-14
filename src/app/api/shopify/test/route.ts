@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
+import { getD1Database, d1Store } from '@/lib/d1';
 import { testShopifyConnection } from '@/lib/shopify';
+import { getSessionUser } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
+    const session = getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
+    }
+
+    const workspaceId = session.ownerId || session.userId;
     const body = await req.json();
     const { shopDomain, adminAccessToken, webhookSecret } = body;
 
@@ -12,12 +20,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Save configuration
-    db.updateShopifyConfig({
+    const updated = db.updateShopifyConfig(workspaceId, {
       shopDomain,
       webhookSecret: webhookSecret || '',
       adminAccessToken: adminAccessToken || '',
       isConnected: true,
     });
+
+    const d1 = getD1Database();
+    if (d1) {
+      await d1Store.updateSettings(d1, workspaceId, updated);
+    }
 
     // If an access token is given, test live connection
     if (adminAccessToken && !adminAccessToken.includes('demo')) {
@@ -41,6 +54,7 @@ export async function POST(req: NextRequest) {
       message: `Shopify settings saved and verified for ${shopDomain}! Webhook endpoint is active.`,
     });
   } catch (error: any) {
+    console.error('Shopify test error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

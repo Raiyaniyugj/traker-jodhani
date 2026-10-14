@@ -115,11 +115,11 @@ export default function HomePage() {
             </Link>
 
             <Link
-              href="/track/6a4dc73d-2dc6-4e67-ba26-5769e3e55926"
+              href="/signup"
               className="border border-neutral-300 bg-white hover:bg-neutral-50 rounded-lg px-6 py-3.5 text-sm font-medium text-neutral-800 transition shadow-2xs inline-flex items-center gap-2"
             >
-              <Eye className="w-4 h-4 text-neutral-500" />
-              <span>Preview Customer Live Tracker</span>
+              <Sparkles className="w-4 h-4 text-neutral-500" />
+              <span>Create Free Atelier Workspace</span>
             </Link>
           </div>
 
@@ -398,12 +398,11 @@ export default function HomePage() {
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <Link
-                  href="/track/6a4dc73d-2dc6-4e67-ba26-5769e3e55926"
-                  target="_blank"
+                  href="/signup"
                   className="bg-white text-black hover:bg-neutral-100 rounded-lg px-6 py-3 text-sm font-medium transition inline-flex items-center gap-2"
                 >
-                  <span>Open Live Customer Demo</span>
-                  <ExternalLink className="w-4 h-4 text-neutral-500" />
+                  <span>Start Your Atelier Pipeline</span>
+                  <ArrowRight className="w-4 h-4 text-neutral-500" />
                 </Link>
                 <Link
                   href="/dashboard"
@@ -438,8 +437,8 @@ export default function HomePage() {
             <Link href="/delivered" className="hover:text-black transition">Delivered</Link>
             <Link href="/pipeline" className="hover:text-black transition">Pipeline</Link>
             <Link href="/team" className="hover:text-black transition">Team</Link>
-            <Link href="/settings" className="hover:text-black transition">Shopify Settings</Link>
-            <Link href="/track/6a4dc73d-2dc6-4e67-ba26-5769e3e55926" className="hover:text-black transition">Live Customer Demo</Link>
+            <Link href="/login" className="hover:text-black transition">Sign In</Link>
+            <Link href="/signup" className="hover:text-black transition">Create Workspace</Link>
           </div>
 
           <p className="text-xs text-neutral-400">

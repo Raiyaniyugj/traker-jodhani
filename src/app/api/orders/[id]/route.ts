@@ -1,65 +1,114 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
 import { getD1Database, d1Store } from '@/lib/d1';
+import { getSessionUser } from '@/lib/auth';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const session = getSessionUser(req);
     const d1 = getD1Database();
-    let order = db.getOrderById(id);
-    let stages = db.getStages();
 
-    if (d1) {
-      const d1Order = await d1Store.getOrderById(d1, id);
-      if (d1Order) order = d1Order;
-      const d1Stages = await d1Store.getStages(d1);
-      if (d1Stages && d1Stages.length > 0) stages = d1Stages;
+    let order: any = null;
+    let stages: any[] = [];
+
+    if (session) {
+      // Authenticated atelier member lookup
+      const workspaceId = session.ownerId || session.userId;
+      if (d1) {
+        order = await d1Store.getOrderById(d1, id, workspaceId);
+        stages = await d1Store.getStages(d1, workspaceId);
+      }
+      if (!order) {
+        order = db.getOrderById(id, workspaceId);
+        stages = db.getStages(workspaceId);
+      }
+    } else {
+      // Public customer tracking portal lookup (allow lookup by Order ID or Tracking Token)
+      if (d1) {
+        order = await d1Store.getOrderById(d1, id);
+        if (order?.userId) {
+          stages = await d1Store.getStages(d1, order.userId);
+        }
+      }
+      if (!order) {
+        order = db.getOrderById(id);
+        if (order?.userId) {
+          stages = db.getStages(order.userId);
+        }
+      }
     }
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
+
     return NextResponse.json({ order, stages });
   } catch (error: any) {
+    console.error('Order [id] GET error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const session = getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
+    }
+
     const { id } = await params;
+    const workspaceId = session.ownerId || session.userId;
     const updates = await req.json();
-    const updated = db.updateOrder(id, updates);
-    if (!updated) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
+
     const d1 = getD1Database();
+    let existingOrder = null;
     if (d1) {
-      await d1Store.saveOrder(d1, updated);
+      existingOrder = await d1Store.getOrderById(d1, id, workspaceId);
     }
+    if (!existingOrder) {
+      existingOrder = db.getOrderById(id, workspaceId);
+    }
+
+    if (!existingOrder) {
+      return NextResponse.json({ error: 'Order not found or permission denied' }, { status: 404 });
+    }
+
+    const updated = db.updateOrder(workspaceId, id, updates, session.name || 'Admin');
+    if (!updated) {
+      return NextResponse.json({ error: 'Failed to update order' }, { status: 400 });
+    }
+
+    if (d1) {
+      await d1Store.saveOrder(d1, { ...updated, userId: workspaceId });
+    }
+
     return NextResponse.json({ success: true, order: updated });
   } catch (error: any) {
+    console.error('Order [id] PATCH error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params;
-    const ok = db.deleteOrder(id);
-    if (!ok) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    const session = getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
     }
+
+    const { id } = await params;
+    const workspaceId = session.ownerId || session.userId;
+
+    const ok = db.deleteOrder(workspaceId, id);
     const d1 = getD1Database();
     if (d1) {
-      try {
-        await d1.prepare('DELETE FROM orders WHERE id = ?').bind(id).run();
-      } catch (e) {
-        console.error('D1 delete order error:', e);
-      }
+      await d1Store.deleteOrder(d1, id, workspaceId);
     }
+
     return NextResponse.json({ success: true });
   } catch (error: any) {
+    console.error('Order [id] DELETE error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

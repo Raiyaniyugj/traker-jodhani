@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('valamdesignindia+0@gmail.com');
-  const [password, setPassword] = useState('Kriva@2911');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,7 +20,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
       const data = await res.json();
       if (data.success) {
@@ -51,7 +51,7 @@ export default function LoginPage() {
             </svg>
             Trackerz
           </Link>
-          <p className="text-sm text-neutral-500 mt-1">Production Tracking</p>
+          <p className="text-sm text-neutral-500 mt-1">Sign in to your production workspace</p>
         </div>
 
         {error && (
@@ -66,14 +66,15 @@ export default function LoginPage() {
         >
           <div>
             <label className="block text-xs font-medium text-neutral-500 mb-1">
-              Email
+              Email Address
             </label>
             <input
               type="email"
               required
+              placeholder="name@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-neutral-400"
             />
           </div>
 
@@ -84,9 +85,10 @@ export default function LoginPage() {
             <input
               type="password"
               required
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
+              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-neutral-400"
             />
           </div>
 
@@ -100,9 +102,9 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-sm text-neutral-500 mt-4">
-          New here?{' '}
+          New workshop?{' '}
           <Link href="/signup" className="text-black font-medium hover:underline">
-            Create a workspace
+            Create an atelier workspace
           </Link>
         </p>
       </div>

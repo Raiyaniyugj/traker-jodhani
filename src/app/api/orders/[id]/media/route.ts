@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
+import { getD1Database, d1Store } from '@/lib/d1';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -13,11 +14,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const updated = db.addMedia(
       id,
       title,
-      url || 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=600&q=80',
+      url || '',
       type || 'general'
     );
     if (!updated) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    const d1 = getD1Database();
+    if (d1 && updated.userId) {
+      await d1Store.saveOrder(d1, { ...updated, userId: updated.userId });
     }
 
     return NextResponse.json({ success: true, gallery: updated.gallery });

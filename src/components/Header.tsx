@@ -12,9 +12,9 @@ interface HeaderProps {
 
 export default function Header({ title, subtitle, rightAction }: HeaderProps) {
   const router = useRouter();
-  const [userName, setUserName] = useState('Dhiren Bhagvanbhai Savaliya');
-  const [userRole, setUserRole] = useState('Admin');
-  const [initials, setInitials] = useState('DB');
+  const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
+  const [initials, setInitials] = useState('');
 
   useEffect(() => {
     async function loadUser() {
@@ -25,17 +25,21 @@ export default function Header({ title, subtitle, rightAction }: HeaderProps) {
           if (data.user?.name) {
             setUserName(data.user.name);
             setUserRole(data.user.role || 'Admin');
-            const parts = data.user.name.split(' ');
-            const init = (parts[0]?.[0] || 'D') + (parts[1]?.[0] || parts[0]?.[1] || 'B');
+            const parts = data.user.name.trim().split(/\s+/);
+            const init = (parts[0]?.[0] || 'U') + (parts[1]?.[0] || parts[0]?.[1] || '');
             setInitials(init.toUpperCase());
+          } else {
+            router.push('/login');
           }
+        } else {
+          router.push('/login');
         }
       } catch (e) {
-        // use fallback
+        router.push('/login');
       }
     }
     loadUser();
-  }, []);
+  }, [router]);
 
   const handleLogout = async () => {
     try {
@@ -63,15 +67,15 @@ export default function Header({ title, subtitle, rightAction }: HeaderProps) {
         <div className="flex items-center gap-3 pl-2 border-l border-neutral-200">
           <div className="text-right">
             <p className="text-sm font-medium text-neutral-900 leading-tight">
-              {userName}
+              {userName || 'Atelier'}
             </p>
             <p className="text-[11px] text-neutral-500 leading-tight">
-              {userRole}
+              {userRole || 'Team'}
             </p>
           </div>
 
           <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center font-medium text-xs tracking-wider shadow-sm">
-            {initials}
+            {initials || 'AT'}
           </div>
 
           <button

@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { useRouter } from 'next/navigation';
 import { User, Role } from '@/lib/types';
 import { UserPlus, Shield } from 'lucide-react';
 
 const AVAILABLE_ROLES: Role[] = ['Admin', 'CAD Designer', 'Manufacturer', 'QC Manager'];
 
 export default function TeamPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
@@ -24,6 +26,10 @@ export default function TeamPage() {
     try {
       setLoading(true);
       const res = await fetch('/api/team');
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setUsers(data.users || []);

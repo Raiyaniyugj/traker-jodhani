@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { useRouter } from 'next/navigation';
 import { Order, PipelineStage } from '@/lib/types';
 import { ExternalLink, Search } from 'lucide-react';
 
 export default function DeliveredPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [search, setSearch] = useState('');
@@ -21,6 +23,10 @@ export default function DeliveredPage() {
     try {
       setLoading(true);
       const res = await fetch('/api/orders');
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setOrders(data.orders || []);

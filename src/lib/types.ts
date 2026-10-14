@@ -5,6 +5,7 @@ export type OrderStatus = 'Active' | 'On Hold' | 'Delivered' | 'Cancelled';
 
 export interface PipelineStage {
   id: string;
+  userId?: string;
   name: string;
   order: number;
   roles: Role[];
@@ -12,6 +13,7 @@ export interface PipelineStage {
 
 export interface User {
   id: string;
+  ownerId?: string;
   name: string;
   email: string;
   role: Role;
@@ -76,6 +78,7 @@ export interface OrderActivity {
 
 export interface Order {
   id: string;
+  userId?: string;
   orderNumber: string; // e.g. "#1001" or "VALAM DESIGN"
   shopifyOrderId?: string;
   shopifyOrderNumber?: string;
@@ -119,6 +122,7 @@ export interface ShopifyConfig {
 
 export interface WebhookLog {
   id: string;
+  userId?: string;
   topic: string;
   shopifyOrderId?: string;
   status: 'success' | 'failed' | 'ignored';
@@ -128,6 +132,7 @@ export interface WebhookLog {
 }
 
 export interface WorkspaceSettings {
+  userId?: string;
   companyName: string;
   ownerName: string;
   phone: string;

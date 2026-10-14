@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
+import { useRouter } from 'next/navigation';
 import {
   Check,
   Copy,
@@ -18,6 +19,7 @@ import {
 import { WebhookLog, WorkspaceSettings } from '@/lib/types';
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
   const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +59,10 @@ export default function SettingsPage() {
     try {
       setLoading(true);
       const res = await fetch('/api/settings');
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setSettings(data.settings);

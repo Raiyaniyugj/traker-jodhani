@@ -47,6 +47,10 @@ export default function OrderDetailsPage() {
     try {
       setLoading(true);
       const res = await fetch(`/api/orders/${orderId}`);
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setOrder(data.order);

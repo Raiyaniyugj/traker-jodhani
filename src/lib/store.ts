@@ -8,6 +8,7 @@ import {
   WebhookLog,
   Role,
 } from './types';
+import bundledDatabaseData from '../../data/database.json';
 
 interface DatabaseData {
   settings: WorkspaceSettings;
@@ -198,16 +199,11 @@ function initDatabase(): DatabaseData {
       return JSON.parse(raw);
     }
   } catch (error) {
-    console.warn('Filesystem read not available or failed, using default data:', error);
+    console.warn('Filesystem read not available or failed, using bundled data:', error);
   }
 
-  const initialData: DatabaseData = {
-    settings: DEFAULT_SETTINGS,
-    stages: DEFAULT_STAGES,
-    users: DEFAULT_USERS,
-    orders: [DEFAULT_ORDER],
-    webhookLogs: DEFAULT_WEBHOOK_LOGS,
-  };
+  // Use statically bundled database.json as the baseline for serverless/Cloudflare Workers
+  const initialData: DatabaseData = JSON.parse(JSON.stringify(bundledDatabaseData));
 
   try {
     if (!fs.existsSync(DATA_DIR)) {

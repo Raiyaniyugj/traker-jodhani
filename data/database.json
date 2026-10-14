@@ -41,8 +41,8 @@
       ]
     },
     {
-      "id": "stage-5",
-      "name": "Factory",
+      "id": "stage-4",
+      "name": "Casting",
       "order": 4,
       "roles": [
         "Admin",
@@ -50,8 +50,8 @@
       ]
     },
     {
-      "id": "stage-4",
-      "name": "Casting",
+      "id": "stage-5",
+      "name": "Factory",
       "order": 5,
       "roles": [
         "Admin",
@@ -89,14 +89,6 @@
       "id": "stage-9",
       "name": "Completed",
       "order": 9,
-      "roles": [
-        "Admin"
-      ]
-    },
-    {
-      "id": "stage-1791963392417",
-      "name": "1",
-      "order": 10,
       "roles": [
         "Admin"
       ]

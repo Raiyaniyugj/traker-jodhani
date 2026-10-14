@@ -15,6 +15,8 @@ import {
   Shield,
   Store,
   Globe,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { WebhookLog, WorkspaceSettings } from '@/lib/types';
 
@@ -35,6 +37,8 @@ export default function SettingsPage() {
   const [shopDomain, setShopDomain] = useState('');
   const [webhookSecret, setWebhookSecret] = useState('');
   const [adminAccessToken, setAdminAccessToken] = useState('');
+  const [showSecret, setShowSecret] = useState(false);
+  const [showToken, setShowToken] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
@@ -69,7 +73,9 @@ export default function SettingsPage() {
         setWebhookLogs(data.webhookLogs || []);
 
         if (data.settings) {
-          setShopDomain(data.settings.shopify?.shopDomain || '');
+          const loadedDomain = data.settings.shopify?.shopDomain || '';
+          // Ensure email address is never loaded as shop domain
+          setShopDomain(loadedDomain.includes('@') ? '' : loadedDomain);
           setWebhookSecret(data.settings.shopify?.webhookSecret || '');
           setAdminAccessToken(data.settings.shopify?.adminAccessToken || '');
           setCompanyName(data.settings.companyName || '');
@@ -105,6 +111,16 @@ export default function SettingsPage() {
     e.preventDefault();
     setSaving(true);
     setMessage(null);
+
+    // Reject if browser autofilled user's email
+    if (shopDomain.includes('@')) {
+      setMessage({
+        text: 'Please enter your Shopify store name (e.g. yourstore.myshopify.com), not your login email address.',
+        type: 'error',
+      });
+      setSaving(false);
+      return;
+    }
 
     // Clean domain (auto-add .myshopify.com if just store name was typed)
     let cleanDomain = shopDomain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
@@ -394,21 +410,48 @@ export default function SettingsPage() {
             </div>
 
             {/* Connection Form */}
-            <form onSubmit={handleConnectStore} className="mt-5 space-y-4">
+            <form
+              onSubmit={handleConnectStore}
+              autoComplete="off"
+              className="mt-5 space-y-4"
+            >
+              {/* Trap decoy inputs to deflect aggressive browser autofill (Chrome/Edge/Password Managers) */}
+              <div
+                style={{
+                  position: 'absolute',
+                  opacity: 0,
+                  height: 0,
+                  width: 0,
+                  pointerEvents: 'none',
+                  overflow: 'hidden',
+                }}
+                aria-hidden="true"
+              >
+                <input type="text" name="decoy_username_field" tabIndex={-1} autoComplete="off" />
+                <input type="password" name="decoy_password_field" tabIndex={-1} autoComplete="off" />
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-neutral-500 mb-1.5">
                   Shop Domain <span className="text-neutral-400 font-normal">(e.g. valamdesign or valamdesign.myshopify.com)</span>
                 </label>
                 <input
                   type="text"
+                  name="shopify_store_domain_input"
+                  id="shopify_store_domain_input"
                   required
                   value={shopDomain}
                   onChange={(e) => setShopDomain(e.target.value)}
                   placeholder="your-store.myshopify.com"
+                  autoComplete="one-time-code"
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                  data-form-type="other"
+                  spellCheck={false}
                   className="w-full rounded-md border border-neutral-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black bg-white"
                 />
                 <p className="text-[11px] text-neutral-400 mt-1">
-                  Do NOT use &quot;admin.shopify.com&quot;. Enter your store name or your .myshopify.com domain.
+                  Enter your store name (not an email address). E.g. valamdesign.myshopify.com
                 </p>
               </div>
 
@@ -419,13 +462,30 @@ export default function SettingsPage() {
                     (100% Optional — Leave BLANK if you can&apos;t find it)
                   </span>
                 </label>
-                <input
-                  type="password"
-                  value={webhookSecret}
-                  onChange={(e) => setWebhookSecret(e.target.value)}
-                  placeholder="Optional — leave blank"
-                  className="w-full rounded-md border border-neutral-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black font-mono bg-white"
-                />
+                <div className="relative">
+                  <input
+                    type={showSecret ? 'text' : 'password'}
+                    name="shopify_webhook_secret_input"
+                    id="shopify_webhook_secret_input"
+                    value={webhookSecret}
+                    onChange={(e) => setWebhookSecret(e.target.value)}
+                    placeholder="Optional — leave blank"
+                    autoComplete="new-password"
+                    data-1p-ignore="true"
+                    data-lpignore="true"
+                    data-form-type="other"
+                    className="w-full rounded-md border border-neutral-300 px-3.5 py-2 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-black font-mono bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSecret(!showSecret)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 p-1"
+                    tabIndex={-1}
+                    title={showSecret ? 'Hide secret' : 'Show secret'}
+                  >
+                    {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
                 <p className="text-[11px] text-neutral-400 mt-1">
                   You do NOT need this to receive Shopify orders. You can leave it empty.
                 </p>
@@ -438,13 +498,30 @@ export default function SettingsPage() {
                     (Optional — needed only to import past historical orders via &quot;Sync Orders Now&quot;)
                   </span>
                 </label>
-                <input
-                  type="password"
-                  value={adminAccessToken}
-                  onChange={(e) => setAdminAccessToken(e.target.value)}
-                  placeholder="shpat_..."
-                  className="w-full rounded-md border border-neutral-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black font-mono bg-white"
-                />
+                <div className="relative">
+                  <input
+                    type={showToken ? 'text' : 'password'}
+                    name="shopify_admin_access_token_input"
+                    id="shopify_admin_access_token_input"
+                    value={adminAccessToken}
+                    onChange={(e) => setAdminAccessToken(e.target.value)}
+                    placeholder="shpat_..."
+                    autoComplete="new-password"
+                    data-1p-ignore="true"
+                    data-lpignore="true"
+                    data-form-type="other"
+                    className="w-full rounded-md border border-neutral-300 px-3.5 py-2 pr-10 text-sm focus:outline-none focus:ring-1 focus:ring-black font-mono bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowToken(!showToken)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 p-1"
+                    tabIndex={-1}
+                    title={showToken ? 'Hide token' : 'Show token'}
+                  >
+                    {showToken ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
                 <p className="text-[11px] text-neutral-400 mt-1">
                   Generate in Shopify Admin → Apps and sales channels → Develop apps → Create an app (select &quot;read_orders&quot; scope).
                 </p>

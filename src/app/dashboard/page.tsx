@@ -27,11 +27,24 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadOrders();
+
+    // Live auto-polling every 10 seconds so new Shopify orders appear live without manual clicking
+    const interval = setInterval(() => {
+      loadOrders(true);
+    }, 10000);
+
+    const handleFocus = () => loadOrders(true);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
-  const loadOrders = async () => {
+  const loadOrders = async (silent: boolean = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const res = await fetch('/api/orders');
       if (res.ok) {
         const data = await res.json();
@@ -45,7 +58,7 @@ export default function DashboardPage() {
     } catch (e) {
       console.error('Error fetching orders:', e);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

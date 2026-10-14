@@ -266,7 +266,7 @@ export const db = {
   },
   saveStages(stages: PipelineStage[]): PipelineStage[] {
     const current = getDB();
-    current.stages = stages;
+    current.stages = stages.map((s, idx) => ({ ...s, order: idx + 1 }));
     saveDatabase(current);
     return current.stages;
   },
@@ -281,6 +281,30 @@ export const db = {
     current.stages.push(newStage);
     saveDatabase(current);
     return newStage;
+  },
+  deleteStage(id: string): boolean {
+    const current = getDB();
+    const index = current.stages.findIndex((s) => s.id === id);
+    if (index === -1) return false;
+
+    current.stages.splice(index, 1);
+    // Re-index consecutive orders
+    current.stages.forEach((s, idx) => {
+      s.order = idx + 1;
+    });
+
+    // Re-assign any existing orders on this stage to the first stage
+    if (current.stages.length > 0) {
+      const fallbackStageId = current.stages[0].id;
+      current.orders.forEach((o) => {
+        if (o.currentStageId === id) {
+          o.currentStageId = fallbackStageId;
+        }
+      });
+    }
+
+    saveDatabase(current);
+    return true;
   },
 
   // Users

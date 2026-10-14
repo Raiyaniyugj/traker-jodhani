@@ -10,7 +10,7 @@
       "webhookSecret": "shpss_test_secret_12345",
       "adminAccessToken": "shpat_demo_secret_token",
       "isConnected": true,
-      "lastSyncAt": "2026-10-13T11:09:23.996Z",
+      "lastSyncAt": "2026-10-14T07:45:13.846Z",
       "autoSync": true
     }
   },
@@ -41,8 +41,8 @@
       ]
     },
     {
-      "id": "stage-4",
-      "name": "Casting",
+      "id": "stage-5",
+      "name": "Factory",
       "order": 4,
       "roles": [
         "Admin",
@@ -50,8 +50,8 @@
       ]
     },
     {
-      "id": "stage-5",
-      "name": "Factory",
+      "id": "stage-4",
+      "name": "Casting",
       "order": 5,
       "roles": [
         "Admin",
@@ -89,6 +89,14 @@
       "id": "stage-9",
       "name": "Completed",
       "order": 9,
+      "roles": [
+        "Admin"
+      ]
+    },
+    {
+      "id": "stage-1791963392417",
+      "name": "1",
+      "order": 10,
       "roles": [
         "Admin"
       ]
@@ -167,10 +175,10 @@
       "total": 1410,
       "baseProductionCost": 635,
       "profit": 715,
-      "currentStageId": "stage-1",
+      "currentStageId": "stage-6",
       "priority": "Medium",
       "status": "Active",
-      "progressPercent": 11,
+      "progressPercent": 67,
       "dueDate": "2026-10-27",
       "notesFromCustomer": "Custom Inscription: Valam Bespoke",
       "internalNotes": "Auto-imported from Shopify store. Ready for CAD design.",
@@ -179,6 +187,36 @@
       "comments": [],
       "activity": [
         {
+          "id": "act-1791962896522",
+          "description": "Stage moved to Quality Check",
+          "timestamp": "2026-10-14T07:28:16.522Z",
+          "actor": "Admin"
+        },
+        {
+          "id": "act-1791962896520",
+          "description": "Stage moved to Factory",
+          "timestamp": "2026-10-14T07:28:16.520Z",
+          "actor": "Admin"
+        },
+        {
+          "id": "act-1791962896519",
+          "description": "Stage moved to Casting",
+          "timestamp": "2026-10-14T07:28:16.519Z",
+          "actor": "Admin"
+        },
+        {
+          "id": "act-1791962896517",
+          "description": "Stage moved to RPT",
+          "timestamp": "2026-10-14T07:28:16.517Z",
+          "actor": "Admin"
+        },
+        {
+          "id": "act-1791962896514",
+          "description": "Stage moved to CAD Design",
+          "timestamp": "2026-10-14T07:28:16.514Z",
+          "actor": "Admin"
+        },
+        {
           "id": "act-1791889575159",
           "description": "Order created (via Shopify Webhook)",
           "timestamp": "2026-10-13T11:06:15.159Z",
@@ -186,7 +224,7 @@
         }
       ],
       "createdAt": "2026-10-13T11:06:15.159Z",
-      "updatedAt": "2026-10-13T11:06:15.159Z"
+      "updatedAt": "2026-10-14T07:28:16.522Z"
     },
     {
       "id": "ord-1791888806754-88kpr",
@@ -237,10 +275,10 @@
       "total": 1400,
       "baseProductionCost": 608,
       "profit": 742,
-      "currentStageId": "stage-6",
+      "currentStageId": "stage-7",
       "priority": "Medium",
       "status": "Active",
-      "progressPercent": 67,
+      "progressPercent": 78,
       "dueDate": "2026-10-27",
       "notesFromCustomer": "Custom order: Engraving: Valam Bespoke",
       "internalNotes": "Imported via Shopify integration.",
@@ -248,6 +286,12 @@
       "gallery": [],
       "comments": [],
       "activity": [
+        {
+          "id": "act-1791962921146",
+          "description": "Stage moved to Packaging",
+          "timestamp": "2026-10-14T07:28:41.146Z",
+          "actor": "Admin"
+        },
         {
           "id": "act-1791889659340",
           "description": "Stage moved to Quality Check",
@@ -286,7 +330,7 @@
         }
       ],
       "createdAt": "2026-10-13T10:53:26.754Z",
-      "updatedAt": "2026-10-13T11:07:39.341Z"
+      "updatedAt": "2026-10-14T07:28:41.146Z"
     },
     {
       "id": "6a4dc73d-2dc6-4e67-ba26-5769e3e55926",
@@ -402,6 +446,14 @@
     }
   ],
   "webhookLogs": [
+    {
+      "topic": "admin/orders-sync",
+      "status": "success",
+      "message": "Manual sync executed. Synced orders from jodhaniexport.myshopify.com",
+      "payloadSummary": "Imported count: 0",
+      "id": "wh-1791963913848",
+      "receivedAt": "2026-10-14T07:45:13.848Z"
+    },
     {
       "topic": "admin/orders-sync",
       "status": "success",

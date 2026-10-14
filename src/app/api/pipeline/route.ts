@@ -36,3 +36,37 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get('id');
+
+    if (!id) {
+      try {
+        const body = await req.json();
+        id = body?.id;
+      } catch (e) {
+        // body might be empty
+      }
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'Stage ID is required' }, { status: 400 });
+    }
+
+    const stages = db.getStages();
+    if (stages.length <= 1) {
+      return NextResponse.json({ error: 'Cannot delete the only remaining stage.' }, { status: 400 });
+    }
+
+    const success = db.deleteStage(id);
+    if (!success) {
+      return NextResponse.json({ error: 'Stage not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, stages: db.getStages() });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

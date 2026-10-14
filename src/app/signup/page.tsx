@@ -60,7 +60,7 @@ export default function SignupPage() {
             </svg>
             Trackerz
           </Link>
-          <p className="text-sm text-neutral-500 mt-1">Start your 24-hour free trial</p>
+          <p className="text-sm text-neutral-500 mt-1">Create your workshop workspace</p>
         </div>
 
         {error && (

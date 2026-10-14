@@ -27,10 +27,10 @@ export default function HomePage() {
               Sign in
             </Link>
             <Link
-              href="/signup"
+              href="/dashboard"
               className="text-sm bg-black text-white rounded-md px-4 py-2 font-medium hover:bg-neutral-800 transition"
             >
-              Start Free Trial
+              Go to Dashboard
             </Link>
           </div>
         </div>
@@ -48,10 +48,10 @@ export default function HomePage() {
 
           <div className="mt-8 flex items-center justify-center gap-3">
             <Link
-              href="/signup"
+              href="/dashboard"
               className="bg-black text-white rounded-md px-6 py-3 text-sm font-medium hover:bg-neutral-800 transition"
             >
-              Start Free Trial
+              Go to Dashboard
             </Link>
             <Link
               href="/login"
@@ -100,27 +100,6 @@ export default function HomePage() {
                 Add your team by email and assign exactly the stage access they need.
               </p>
             </div>
-          </div>
-        </section>
-
-        {/* Pricing Card */}
-        <section className="max-w-5xl mx-auto px-6 pb-24">
-          <div className="bg-white border border-neutral-200 rounded-xl p-10 text-center shadow-2xs">
-            <p className="text-xs font-medium text-neutral-400 uppercase tracking-wide">
-              Simple pricing
-            </p>
-            <p className="font-serif font-semibold text-4xl mt-2 text-neutral-900">
-              ₹5,000<span className="text-lg text-neutral-400 font-sans">/year</span>
-            </p>
-            <p className="text-sm text-neutral-500 mt-2">
-              24-hour free trial, then full access to all features for 1 year. Unlimited orders and team members.
-            </p>
-            <Link
-              href="/signup"
-              className="inline-block mt-6 bg-black text-white rounded-md px-6 py-3 text-sm font-medium hover:bg-neutral-800 transition"
-            >
-              Start 24-Hour Free Trial
-            </Link>
           </div>
         </section>
       </main>

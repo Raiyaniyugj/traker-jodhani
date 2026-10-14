@@ -161,3 +161,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = getSessionUser(req);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 });
+    }
+
+    const workspaceId = session.ownerId || session.userId;
+    const d1 = getD1Database();
+
+    if (d1) {
+      await d1.prepare('DELETE FROM orders WHERE user_id = ?').bind(workspaceId).run();
+      await d1.prepare('DELETE FROM webhook_logs WHERE user_id = ?').bind(workspaceId).run();
+    }
+
+    const existing = db.getOrders(workspaceId);
+    for (const o of existing) {
+      db.deleteOrder(workspaceId, o.id);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'All orders and logs cleared. Workspace is now empty.',
+    });
+  } catch (error: any) {
+    console.error('Orders DELETE error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

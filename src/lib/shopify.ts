@@ -222,27 +222,78 @@ export function parseShopifyOrderPayload(payload: any, userId?: string): Order {
 }
 
 /**
+ * Normalize whatever the user inputs for Shopify domain:
+ * - valamdesign -> valamdesign.myshopify.com
+ * - https://valamdesign.myshopify.com/ -> valamdesign.myshopify.com
+ * - https://admin.shopify.com/store/valamdesign -> valamdesign.myshopify.com
+ * - admin.shopify.com -> empty (invalid)
+ */
+export function normalizeShopifyDomain(input: string): string {
+  if (!input) return '';
+  let cleaned = input.trim().toLowerCase();
+  // Strip protocol
+  cleaned = cleaned.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+
+  // If user pasted admin.shopify.com/store/<store-name>
+  const adminMatch = cleaned.match(/admin\.shopify\.com\/store\/([a-z0-9-]+)/i);
+  if (adminMatch && adminMatch[1]) {
+    return `${adminMatch[1]}.myshopify.com`;
+  }
+
+  // If literally just admin.shopify.com without store name
+  if (cleaned === 'admin.shopify.com') {
+    return '';
+  }
+
+  // If user pasted <store-name>.myshopify.com/...
+  const myshopifyMatch = cleaned.match(/^([a-z0-9-]+)\.myshopify\.com/i);
+  if (myshopifyMatch && myshopifyMatch[1]) {
+    return `${myshopifyMatch[1]}.myshopify.com`;
+  }
+
+  // If user entered just the store slug without dots (e.g., 'valamdesign' or 'jodhani-export')
+  if (!cleaned.includes('.')) {
+    return `${cleaned}.myshopify.com`;
+  }
+
+  return cleaned;
+}
+
+/**
  * Call Shopify REST Admin API to test credentials
  */
 export async function testShopifyConnection(shopDomain: string, accessToken: string) {
-  const cleanDomain = shopDomain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const cleanDomain = normalizeShopifyDomain(shopDomain);
+  if (!cleanDomain) {
+    return {
+      success: false,
+      error: 'Invalid shop domain. Please provide your store name or .myshopify.com address (e.g. yourstore.myshopify.com).',
+    };
+  }
+
   const url = `https://${cleanDomain}/admin/api/2024-01/shop.json`;
 
   try {
     const res = await fetch(url, {
       headers: {
-        'X-Shopify-Access-Token': accessToken,
+        'X-Shopify-Access-Token': accessToken.trim(),
         'Content-Type': 'application/json',
       },
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      return { success: false, error: `Shopify responded with HTTP ${res.status}: ${errText}` };
+      let hint = '';
+      if (res.status === 401) {
+        hint = ' (Check that your Admin API Access Token starting with "shpat_" is valid and has read permissions)';
+      } else if (res.status === 404) {
+        hint = ' (Check that your store .myshopify.com domain is spelled correctly)';
+      }
+      return { success: false, error: `Shopify responded with HTTP ${res.status}${hint}: ${errText}` };
     }
 
     const data = await res.json();
-    return { success: true, shop: data.shop };
+    return { success: true, shop: data.shop, domain: cleanDomain };
   } catch (error: any) {
     return { success: false, error: error.message || 'Network error connecting to Shopify' };
   }
@@ -252,20 +303,31 @@ export async function testShopifyConnection(shopDomain: string, accessToken: str
  * Call Shopify REST Admin API to fetch live open orders
  */
 export async function fetchShopifyOrders(shopDomain: string, accessToken: string) {
-  const cleanDomain = shopDomain.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const url = `https://${cleanDomain}/admin/api/2024-01/orders.json?status=open&limit=25`;
+  const cleanDomain = normalizeShopifyDomain(shopDomain);
+  if (!cleanDomain) {
+    throw new Error('Invalid shop domain. Please provide your store name or .myshopify.com address.');
+  }
+
+  // status=any retrieves open, unfulfilled, and recently placed orders
+  const url = `https://${cleanDomain}/admin/api/2024-01/orders.json?status=any&limit=50`;
 
   try {
     const res = await fetch(url, {
       headers: {
-        'X-Shopify-Access-Token': accessToken,
+        'X-Shopify-Access-Token': accessToken.trim(),
         'Content-Type': 'application/json',
       },
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      throw new Error(`Failed to fetch orders (${res.status}): ${errText}`);
+      let hint = '';
+      if (res.status === 401) {
+        hint = ' [Invalid Admin API Token or missing read_orders scope]';
+      } else if (res.status === 404) {
+        hint = ' [Store domain not found]';
+      }
+      throw new Error(`Shopify API error (${res.status})${hint}: ${errText}`);
     }
 
     const data = await res.json();

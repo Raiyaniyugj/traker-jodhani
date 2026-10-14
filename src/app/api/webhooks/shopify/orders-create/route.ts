@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
 import { getD1Database, d1Store } from '@/lib/d1';
-import { parseShopifyOrderPayload, verifyShopifyWebhook } from '@/lib/shopify';
+import { parseShopifyOrderPayload, verifyShopifyWebhook, normalizeShopifyDomain } from '@/lib/shopify';
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,19 +19,33 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Detect user ID if passed explicitly in query parameter: ?uid=usr_...
+    const urlObj = new URL(req.url);
+    const queryUid = urlObj.searchParams.get('uid') || '';
+
     // Detect shop domain from header or order payload url
-    let detectedShop = shopHeader.toLowerCase().trim();
+    let detectedShop = normalizeShopifyDomain(shopHeader);
     if (!detectedShop && payload?.order_status_url) {
       try {
         const u = new URL(payload.order_status_url);
-        detectedShop = u.hostname.toLowerCase().trim();
+        detectedShop = normalizeShopifyDomain(u.hostname);
       } catch {}
     }
 
     const d1 = getD1Database();
     let matchedWorkspace: { userId: string; settings: any } | null = null;
 
-    if (d1 && detectedShop) {
+    if (queryUid) {
+      if (d1) {
+        const uSettings = await d1Store.getSettings(d1, queryUid);
+        if (uSettings) matchedWorkspace = { userId: queryUid, settings: uSettings };
+      }
+      if (!matchedWorkspace) {
+        matchedWorkspace = { userId: queryUid, settings: db.getSettings(queryUid) };
+      }
+    }
+
+    if (!matchedWorkspace && d1 && detectedShop) {
       matchedWorkspace = await d1Store.getSettingsByShopDomain(d1, detectedShop);
     }
     if (!matchedWorkspace && detectedShop) {
@@ -46,7 +60,7 @@ export async function POST(req: NextRequest) {
           .prepare('SELECT id, owner_id FROM users ORDER BY created_at DESC LIMIT 1')
           .first();
         if (userRow) {
-          const uId = userRow.owner_id || userRow.id;
+          const uId = (userRow.owner_id as string) || (userRow.id as string);
           const uSettings = await d1Store.getSettings(d1, uId);
           matchedWorkspace = { userId: uId, settings: uSettings };
         }
@@ -123,20 +137,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Handle test / ping notifications from Shopify
-    if (!payload.id && !payload.line_items) {
+    // Handle test / ping notifications from Shopify (e.g. "Send test notification" button in Shopify Admin)
+    const isShopifyTest =
+      (!payload.id && !payload.line_items) ||
+      payload.test === true ||
+      payload.name === '#9999' ||
+      String(payload.id) === '820982911946154500' ||
+      payload.customer?.email === 'john.smith@example.com';
+
+    if (isShopifyTest) {
       const pingLog = {
         id: `wh-${Date.now()}`,
         userId: workspaceId,
         topic: topicHeader,
+        shopifyOrderId: String(payload.id || 'test-ping'),
         status: 'success' as const,
-        message: 'Shopify test webhook verification ping received successfully.',
-        payloadSummary: `Shop: ${detectedShop || 'Shopify Store Connected'}`,
+        message: 'Shopify test notification received successfully! Webhook endpoint is verified and ready for real orders.',
+        payloadSummary: `Test verified from ${detectedShop || 'Shopify Store'}`,
         receivedAt: new Date().toISOString(),
       };
       db.addWebhookLog(workspaceId, pingLog);
       if (d1) await d1Store.addWebhookLog(d1, pingLog);
-      return NextResponse.json({ success: true, message: 'Ping acknowledged' }, { status: 200 });
+      return NextResponse.json({
+        success: true,
+        message: 'Shopify test ping acknowledged successfully. Live connection verified.',
+      }, { status: 200 });
     }
 
     const shopifyOrderId = String(payload.id || '');

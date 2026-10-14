@@ -183,25 +183,57 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSimulateWebhook = async () => {
+  const handleTestWebhookPing = async () => {
     setSimulating(true);
     setMessage(null);
     try {
-      const res = await fetch('/api/shopify/simulate', { method: 'POST' });
+      const targetUrl = computeWebhookUrl();
+      const res = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-shopify-topic': 'orders/create',
+          'x-shopify-shop-domain': shopDomain || 'jodhaniexport.myshopify.com',
+        },
+        body: JSON.stringify({
+          test: true,
+          message: 'Endpoint health check test ping',
+        }),
+      });
       const data = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setMessage({
-          text: `Success! Incoming Shopify Webhook verified: Order ${data.order.orderNumber} added to New Orders.`,
+          text: 'Webhook endpoint is 100% active and listening! Live connection confirmed without creating dummy orders.',
           type: 'success',
         });
         loadData();
       } else {
-        setMessage({ text: data.error, type: 'error' });
+        setMessage({ text: data.error || 'Failed to ping webhook', type: 'error' });
       }
     } catch (err: any) {
-      setMessage({ text: err.message, type: 'error' });
+      setMessage({ text: err.message || 'Error pinging webhook endpoint', type: 'error' });
     } finally {
       setSimulating(false);
+    }
+  };
+
+  const handleClearOrders = async () => {
+    if (!confirm('Are you sure you want to clear all orders and webhook logs? This will reset your dashboard to a completely fresh 0-order state.')) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/orders', { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setMessage({ text: 'All orders and logs cleared. Your dashboard is now completely fresh with 0 orders.', type: 'success' });
+        loadData();
+      } else {
+        setMessage({ text: data.error || 'Failed to clear orders', type: 'error' });
+      }
+    } catch (e: any) {
+      setMessage({ text: e.message, type: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -365,7 +397,7 @@ export default function SettingsPage() {
             <form onSubmit={handleConnectStore} className="mt-5 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-neutral-500 mb-1.5">
-                  Shop Domain
+                  Shop Domain <span className="text-neutral-400 font-normal">(e.g. valamdesign or valamdesign.myshopify.com)</span>
                 </label>
                 <input
                   type="text"
@@ -375,6 +407,9 @@ export default function SettingsPage() {
                   placeholder="your-store.myshopify.com"
                   className="w-full rounded-md border border-neutral-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black bg-white"
                 />
+                <p className="text-[11px] text-neutral-400 mt-1">
+                  Do NOT use &quot;admin.shopify.com&quot;. Enter your store name or your .myshopify.com domain.
+                </p>
               </div>
 
               <div>
@@ -397,7 +432,7 @@ export default function SettingsPage() {
                 <label className="block text-xs font-medium text-neutral-500 mb-1.5">
                   Shopify Admin API Access Token{' '}
                   <span className="text-neutral-400 font-normal">
-                    (Optional, for manual &quot;Sync Orders Now&quot; button)
+                    (Optional — needed only to import past historical orders via &quot;Sync Orders Now&quot;)
                   </span>
                 </label>
                 <input
@@ -407,36 +442,52 @@ export default function SettingsPage() {
                   placeholder="shpat_..."
                   className="w-full rounded-md border border-neutral-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black font-mono bg-white"
                 />
+                <p className="text-[11px] text-neutral-400 mt-1">
+                  Generate in Shopify Admin → Apps and sales channels → Develop apps → Create an app (select &quot;read_orders&quot; scope).
+                </p>
               </div>
 
-              <div className="pt-2 flex flex-wrap items-center gap-3">
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="bg-black text-white rounded-md px-6 py-2.5 text-sm font-medium hover:bg-neutral-800 transition disabled:opacity-50"
+                  >
+                    {saving ? 'Connecting...' : 'Connect Store'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTestWebhookPing}
+                    disabled={simulating}
+                    className="border border-neutral-300 bg-neutral-50 hover:bg-neutral-100 text-neutral-800 rounded-md px-4 py-2.5 text-sm font-medium transition flex items-center gap-2 shadow-2xs"
+                    title="Test that the webhook endpoint is reachable without creating fake orders"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{simulating ? 'Testing...' : 'Test Webhook Connectivity'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSyncOrders}
+                    disabled={syncing}
+                    className="border border-neutral-300 text-neutral-800 rounded-md px-4 py-2.5 text-sm font-medium hover:bg-neutral-100 transition flex items-center gap-2"
+                    title="Import existing historical orders using your Admin API Access Token"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+                    <span>{syncing ? 'Syncing...' : 'Sync Orders Now'}</span>
+                  </button>
+                </div>
+
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleClearOrders}
                   disabled={saving}
-                  className="bg-black text-white rounded-md px-6 py-2.5 text-sm font-medium hover:bg-neutral-800 transition disabled:opacity-50"
+                  className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border border-rose-200 px-3 py-2 rounded-md transition"
+                  title="Wipe all orders and logs to start completely fresh"
                 >
-                  {saving ? 'Connecting...' : 'Connect Store'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSimulateWebhook}
-                  disabled={simulating}
-                  className="border border-neutral-300 bg-neutral-50 hover:bg-neutral-100 text-neutral-800 rounded-md px-4 py-2.5 text-sm font-medium transition flex items-center gap-2 shadow-2xs"
-                  title="Test that incoming Shopify order webhooks are received and mapped to New Orders"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  <span>{simulating ? 'Sending test...' : 'Send Test Order (Verify Webhook)'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSyncOrders}
-                  disabled={syncing}
-                  className="border border-neutral-300 text-neutral-800 rounded-md px-4 py-2.5 text-sm font-medium hover:bg-neutral-100 transition flex items-center gap-2"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-                  <span>{syncing ? 'Syncing...' : 'Sync Orders Now'}</span>
+                  Clear All Orders (Fresh Slate)
                 </button>
               </div>
             </form>

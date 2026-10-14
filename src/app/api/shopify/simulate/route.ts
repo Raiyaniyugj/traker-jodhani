@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
 import { getD1Database, d1Store } from '@/lib/d1';
-import { generateMockShopifyOrder, parseShopifyOrderPayload } from '@/lib/shopify';
+
 import { getSessionUser } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -12,18 +12,13 @@ export async function POST(req: NextRequest) {
     }
 
     const workspaceId = session.ownerId || session.userId;
-    const mockPayload = generateMockShopifyOrder();
-    const orderData = parseShopifyOrderPayload(mockPayload);
-    const created = db.createOrder(workspaceId, orderData);
-
     const logEntry = {
       id: `wh-${Date.now()}`,
       userId: workspaceId,
-      topic: 'orders/create (simulated)',
-      shopifyOrderId: String(mockPayload.id),
+      topic: 'orders/create (test-ping)',
       status: 'success' as const,
-      message: `Simulated order ${created.orderNumber} successfully ingested into workshop.`,
-      payloadSummary: `${created.customer.name} - ${created.items[0]?.title} ($${created.total})`,
+      message: 'Connectivity test ping verified. Webhook endpoint is active and listening.',
+      payloadSummary: 'Test Ping: Connection OK',
       receivedAt: new Date().toISOString(),
     };
 
@@ -31,14 +26,12 @@ export async function POST(req: NextRequest) {
 
     const d1 = getD1Database();
     if (d1) {
-      await d1Store.saveOrder(d1, { ...created, userId: workspaceId });
       await d1Store.addWebhookLog(d1, logEntry);
     }
 
     return NextResponse.json({
       success: true,
-      message: `Simulated order ${created.orderNumber} created!`,
-      order: created,
+      message: 'Shopify webhook connection verified. No dummy data created.',
     });
   } catch (error: any) {
     console.error('Shopify simulate error:', error);

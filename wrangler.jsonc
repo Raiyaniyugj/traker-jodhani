@@ -9,5 +9,12 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "traker-jodhani-db",
+      "database_id": "03c81cac-b23a-4ac9-bb7a-cba42ec58744"
+    }
+  ]
 }

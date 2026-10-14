@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
+import { getD1Database, d1Store } from '@/lib/d1';
 
 export async function GET(req: NextRequest) {
   try {
-    const orders = db.getOrders();
-    const stages = db.getStages();
-    const settings = db.getSettings();
+    const d1 = getD1Database();
+    let orders = db.getOrders();
+    let stages = db.getStages();
+    let settings = db.getSettings();
+
+    if (d1) {
+      const d1Orders = await d1Store.getOrders(d1);
+      if (d1Orders && d1Orders.length > 0) {
+        orders = d1Orders;
+      }
+      const d1Stages = await d1Store.getStages(d1);
+      if (d1Stages && d1Stages.length > 0) {
+        stages = d1Stages;
+      }
+      const d1Settings = await d1Store.getSettings(d1);
+      if (d1Settings) {
+        settings = d1Settings;
+      }
+    }
 
     // Calculate metrics
     const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
@@ -53,7 +70,13 @@ export async function POST(req: NextRequest) {
       initialStageId,
     } = body;
 
-    const stages = db.getStages();
+    const d1 = getD1Database();
+    let stages = db.getStages();
+    if (d1) {
+      const d1Stages = await d1Store.getStages(d1);
+      if (d1Stages && d1Stages.length > 0) stages = d1Stages;
+    }
+
     const stageId = initialStageId || stages[0]?.id || 'stage-1';
     const subtotal = parseFloat(price) || 1000;
     const shipping = parseFloat(shippingFee) || 0;
@@ -115,6 +138,10 @@ export async function POST(req: NextRequest) {
       trackingCarrier: 'FedEx Priority',
       trackingUrl: '',
     });
+
+    if (d1) {
+      await d1Store.saveOrder(d1, newOrder);
+    }
 
     return NextResponse.json({ success: true, order: newOrder }, { status: 201 });
   } catch (error: any) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
+import { getD1Database, d1Store } from '@/lib/d1';
 import { parseShopifyOrderPayload, verifyShopifyWebhook } from '@/lib/shopify';
 
 export async function POST(req: NextRequest) {
@@ -111,13 +112,23 @@ export async function POST(req: NextRequest) {
       db.updateShopifyConfig({ shopDomain: shopHeader, isConnected: true });
     }
 
-    db.addWebhookLog({
+    const logEntry = {
+      id: `wh-${Date.now()}`,
       topic: topicHeader,
       shopifyOrderId,
-      status: 'success',
+      status: 'success' as const,
       message: `Order ${created.orderNumber} successfully imported into New Orders.`,
       payloadSummary: `${created.customer.name} · ${created.items[0]?.title} ($${created.total})`,
-    });
+      receivedAt: new Date().toISOString(),
+    };
+
+    db.addWebhookLog(logEntry);
+
+    const d1 = getD1Database();
+    if (d1) {
+      await d1Store.saveOrder(d1, created);
+      await d1Store.addWebhookLog(d1, logEntry);
+    }
 
     return NextResponse.json({ success: true, order: created }, { status: 200 });
   } catch (error: any) {

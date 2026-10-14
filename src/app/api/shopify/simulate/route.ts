@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/store';
+import { getD1Database, d1Store } from '@/lib/d1';
 import { generateMockShopifyOrder, parseShopifyOrderPayload } from '@/lib/shopify';
 
 export async function POST() {
@@ -8,13 +9,23 @@ export async function POST() {
     const orderData = parseShopifyOrderPayload(mockPayload);
     const created = db.createOrder(orderData);
 
-    db.addWebhookLog({
+    const logEntry = {
+      id: `wh-${Date.now()}`,
       topic: 'orders/create (simulated)',
       shopifyOrderId: String(mockPayload.id),
-      status: 'success',
+      status: 'success' as const,
       message: `Simulated order ${created.orderNumber} successfully ingested.`,
       payloadSummary: `${created.customer.name} - ${created.items[0]?.title} ($${created.total})`,
-    });
+      receivedAt: new Date().toISOString(),
+    };
+
+    db.addWebhookLog(logEntry);
+
+    const d1 = getD1Database();
+    if (d1) {
+      await d1Store.saveOrder(d1, created);
+      await d1Store.addWebhookLog(d1, logEntry);
+    }
 
     return NextResponse.json({
       success: true,

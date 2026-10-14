@@ -13,6 +13,8 @@
 /.next/
 /out/
 /build
+/.open-next/
+/.wrangler/
 
 # Production artifacts
 dist

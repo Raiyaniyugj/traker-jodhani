@@ -192,44 +192,44 @@ const DEFAULT_WEBHOOK_LOGS: WebhookLog[] = [
 ];
 
 function initDatabase(): DatabaseData {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    if (fs.existsSync(DB_FILE)) {
+      const raw = fs.readFileSync(DB_FILE, 'utf-8');
+      return JSON.parse(raw);
+    }
+  } catch (error) {
+    console.warn('Filesystem read not available or failed, using default data:', error);
   }
 
-  if (!fs.existsSync(DB_FILE)) {
-    const initialData: DatabaseData = {
-      settings: DEFAULT_SETTINGS,
-      stages: DEFAULT_STAGES,
-      users: DEFAULT_USERS,
-      orders: [DEFAULT_ORDER],
-      webhookLogs: DEFAULT_WEBHOOK_LOGS,
-    };
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
-    return initialData;
-  }
+  const initialData: DatabaseData = {
+    settings: DEFAULT_SETTINGS,
+    stages: DEFAULT_STAGES,
+    users: DEFAULT_USERS,
+    orders: [DEFAULT_ORDER],
+    webhookLogs: DEFAULT_WEBHOOK_LOGS,
+  };
 
   try {
-    const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    return JSON.parse(raw);
-  } catch (error) {
-    console.error('Failed to parse database.json, re-initializing', error);
-    const initialData: DatabaseData = {
-      settings: DEFAULT_SETTINGS,
-      stages: DEFAULT_STAGES,
-      users: DEFAULT_USERS,
-      orders: [DEFAULT_ORDER],
-      webhookLogs: DEFAULT_WEBHOOK_LOGS,
-    };
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
     fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
-    return initialData;
+  } catch {
+    // Read-only filesystem in serverless environments
   }
+
+  return initialData;
 }
 
 function saveDatabase(data: DatabaseData) {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch {
+    // In-memory cache continues to serve the state even if filesystem is read-only
   }
-  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
 }
 
 // Memory cache

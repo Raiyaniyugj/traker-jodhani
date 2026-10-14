@@ -39,11 +39,6 @@ export default function SettingsPage() {
   const [adminAccessToken, setAdminAccessToken] = useState('');
   const [showSecret, setShowSecret] = useState(false);
   const [showToken, setShowToken] = useState(false);
-  const [companyName, setCompanyName] = useState('');
-  const [ownerName, setOwnerName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [currency, setCurrency] = useState('$');
 
   // Public domain override (useful when testing with ngrok or custom domain)
   const [customHost, setCustomHost] = useState('');
@@ -78,11 +73,6 @@ export default function SettingsPage() {
           setShopDomain(loadedDomain.includes('@') ? '' : loadedDomain);
           setWebhookSecret(data.settings.shopify?.webhookSecret || '');
           setAdminAccessToken(data.settings.shopify?.adminAccessToken || '');
-          setCompanyName(data.settings.companyName || '');
-          setOwnerName(data.settings.ownerName || '');
-          setPhone(data.settings.phone || '');
-          setEmail(data.settings.email || '');
-          setCurrency(data.settings.currency || '$');
         }
       }
     } catch (e) {
@@ -253,31 +243,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      const res = await fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyName,
-          ownerName,
-          phone,
-          email,
-          currency,
-        }),
-      });
-      if (res.ok) {
-        setMessage({ text: 'Workspace profile saved successfully!', type: 'success' });
-        loadData();
-      }
-    } catch (e: any) {
-      setMessage({ text: e.message, type: 'error' });
-    } finally {
-      setSaving(false);
-    }
-  };
+
 
   return (
     <div className="flex min-h-screen bg-neutral-50 text-neutral-900">
@@ -680,92 +646,7 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* Workspace & Business Profile */}
-          <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-2xs">
-            <h2 className="text-lg font-semibold text-neutral-900 mb-1">
-              Workspace Profile
-            </h2>
-            <p className="text-xs text-neutral-500 mb-4">
-              Company branding and workshop defaults
-            </p>
 
-            <form onSubmit={handleSaveProfile} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1">
-                    Company Name
-                  </label>
-                  <input
-                    type="text"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1">
-                    Workshop Owner
-                  </label>
-                  <input
-                    type="text"
-                    value={ownerName}
-                    onChange={(e) => setOwnerName(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1">
-                    Phone (+91)
-                  </label>
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1">
-                    Currency Symbol
-                  </label>
-                  <select
-                    value={currency}
-                    onChange={(e) => setCurrency(e.target.value)}
-                    className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black bg-white"
-                  >
-                    <option value="$">$ (USD)</option>
-                    <option value="₹">₹ (INR)</option>
-                    <option value="€">€ (EUR)</option>
-                    <option value="£">£ (GBP)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="bg-neutral-900 text-white rounded-md px-5 py-2 text-sm font-medium hover:bg-black transition"
-                >
-                  Save Workspace Profile
-                </button>
-              </div>
-            </form>
-          </div>
         </main>
       </div>
     </div>

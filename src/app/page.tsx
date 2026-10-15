@@ -155,10 +155,10 @@ export default function HomePage() {
                   </span>
                 </div>
                 <h3 className="font-serif font-semibold text-xl text-neutral-900 mt-1.5">
-                  VALAM DESIGN — 14K White Gold Diamond Pendant
+                  Custom Atelier — 14K White Gold Diamond Pendant
                 </h3>
                 <p className="text-xs text-neutral-500 mt-0.5">
-                  Client: Dhiren Bhagvanbhai Savaliya · Due: Oct 18, 2026 · Rush Order
+                  Client: Private Client · Due: Oct 18, 2026 · Rush Order
                 </p>
               </div>
 

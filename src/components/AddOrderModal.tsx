@@ -127,7 +127,7 @@ export default function AddOrderModal({
                 required
                 value={formData.orderNumber}
                 onChange={handleChange}
-                placeholder="e.g. VALAM DESIGN or #1002"
+                placeholder="e.g. #1002"
                 className="w-full text-sm border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-black"
               />
             </div>
@@ -141,7 +141,7 @@ export default function AddOrderModal({
                 required
                 value={formData.customerName}
                 onChange={handleChange}
-                placeholder="Dhiren Bhagvanbhai Savaliya"
+                placeholder="e.g. Jane Doe"
                 className="w-full text-sm border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-black"
               />
             </div>
@@ -157,20 +157,20 @@ export default function AddOrderModal({
                 name="customerEmail"
                 value={formData.customerEmail}
                 onChange={handleChange}
-                placeholder="client@jewelry.com"
+                placeholder="client@example.com"
                 className="w-full text-sm border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-black"
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-neutral-500 mb-1">
-                Client Phone (+91)
+                Client Phone
               </label>
               <input
                 type="text"
                 name="customerPhone"
                 value={formData.customerPhone}
                 onChange={handleChange}
-                placeholder="+91 99300 22492"
+                placeholder="+1 (555) 000-0000"
                 className="w-full text-sm border border-neutral-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-black"
               />
             </div>
@@ -295,7 +295,7 @@ export default function AddOrderModal({
                 name="customEngraving"
                 value={formData.customEngraving}
                 onChange={handleChange}
-                placeholder="e.g. 14K Stamping & engraving Dhiren'"
+                placeholder="e.g. 14K Stamped or Custom Text"
                 className="w-full text-sm border border-neutral-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none"
               />
             </div>

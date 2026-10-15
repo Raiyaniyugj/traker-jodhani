@@ -45,10 +45,10 @@ export function parseShopifyOrderPayload(payload: any, userId?: string): Order {
   
   const customer = {
     name: payload.customer
-      ? `${payload.customer.first_name || ''} ${payload.customer.last_name || ''}`.trim() || payload.customer.email || 'Valued Customer'
-      : (payload.shipping_address?.name || payload.billing_address?.name || 'Valued Customer'),
-    email: payload.customer?.email || payload.email || payload.contact_email || 'client@example.com',
-    phone: payload.customer?.phone || payload.shipping_address?.phone || payload.billing_address?.phone || '+91 99300 22492',
+      ? `${payload.customer.first_name || ''} ${payload.customer.last_name || ''}`.trim() || payload.customer.email || 'Customer'
+      : (payload.shipping_address?.name || payload.billing_address?.name || 'Customer'),
+    email: payload.customer?.email || payload.email || payload.contact_email || '',
+    phone: payload.customer?.phone || payload.shipping_address?.phone || payload.billing_address?.phone || '',
   };
 
   const shippingAddress = {
@@ -57,7 +57,7 @@ export function parseShopifyOrderPayload(payload: any, userId?: string): Order {
     city: payload.shipping_address?.city || '',
     province: payload.shipping_address?.province || '',
     zip: payload.shipping_address?.zip || '',
-    country: payload.shipping_address?.country || 'India',
+    country: payload.shipping_address?.country || '',
   };
 
   const billingAddress = {
@@ -223,9 +223,9 @@ export function parseShopifyOrderPayload(payload: any, userId?: string): Order {
 
 /**
  * Normalize whatever the user inputs for Shopify domain:
- * - valamdesign -> valamdesign.myshopify.com
- * - https://valamdesign.myshopify.com/ -> valamdesign.myshopify.com
- * - https://admin.shopify.com/store/valamdesign -> valamdesign.myshopify.com
+ * - mystore -> mystore.myshopify.com
+ * - https://mystore.myshopify.com/ -> mystore.myshopify.com
+ * - https://admin.shopify.com/store/mystore -> mystore.myshopify.com
  * - admin.shopify.com -> empty (invalid)
  */
 export function normalizeShopifyDomain(input: string): string {
@@ -251,7 +251,7 @@ export function normalizeShopifyDomain(input: string): string {
     return `${myshopifyMatch[1]}.myshopify.com`;
   }
 
-  // If user entered just the store slug without dots (e.g., 'valamdesign' or 'jodhani-export')
+  // If user entered just the store slug without dots (e.g., 'mystore' or 'custom-atelier')
   if (!cleaned.includes('.')) {
     return `${cleaned}.myshopify.com`;
   }
@@ -374,10 +374,10 @@ export function generateMockShopifyOrder() {
       shape: 'Round',
       carat: '1.50',
       price: 1350,
-      engraving: 'Valam Bespoke',
+      engraving: 'Custom Monogram',
     },
     {
-      title: 'VALAM DESIGN Custom Monogram Pendant',
+      title: 'Solitaire Diamond Pendant',
       productType: 'Pendant',
       variant: '14K White Gold / 1.20ct',
       metal: '14K',
@@ -385,13 +385,13 @@ export function generateMockShopifyOrder() {
       shape: 'Round',
       carat: '1.20',
       price: 1075,
-      engraving: "14K Stamping & engraving Dhiren'",
+      engraving: '14K Stamped',
     },
   ];
 
   const chosen = sampleProducts[Math.floor(Math.random() * sampleProducts.length)];
   const customerNames = [
-    { first: 'Dhiren', last: 'Savaliya', email: 'valamdesignindia+0@gmail.com', phone: '+91 99300 22492' },
+    { first: 'Emma', last: 'Watson', email: 'emma.watson@example.com', phone: '+1 212 555 0143' },
     { first: 'Aarav', last: 'Mehta', email: 'aarav.mehta@example.com', phone: '+91 98251 22334' },
     { first: 'Sophia', last: 'Laurent', email: 'sophia.laurent@luxurygems.fr', phone: '+33 6 12 34 56 78' },
     { first: 'Marcus', last: 'Vance', email: 'mvance@manhattanfinejewels.com', phone: '+1 212 555 0192' },
@@ -411,20 +411,20 @@ export function generateMockShopifyOrder() {
     },
     shipping_address: {
       name: `${cust.first} ${cust.last}`,
-      address1: '402, Royal Diamond Plaza, Mini Bazar',
-      city: 'Surat',
-      province: 'Gujarat',
-      zip: '395006',
-      country: 'India',
+      address1: '100 Diamond District Blvd',
+      city: 'New York',
+      province: 'NY',
+      zip: '10036',
+      country: 'United States',
       phone: cust.phone,
     },
     billing_address: {
       name: `${cust.first} ${cust.last}`,
-      address1: '402, Royal Diamond Plaza, Mini Bazar',
-      city: 'Surat',
-      province: 'Gujarat',
-      zip: '395006',
-      country: 'India',
+      address1: '100 Diamond District Blvd',
+      city: 'New York',
+      province: 'NY',
+      zip: '10036',
+      country: 'United States',
     },
     subtotal_price: chosen.price.toString(),
     total_shipping_price: '60.00',

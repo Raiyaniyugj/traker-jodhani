@@ -199,7 +199,7 @@ export default function SettingsPage() {
         headers: {
           'Content-Type': 'application/json',
           'x-shopify-topic': 'orders/create',
-          'x-shopify-shop-domain': shopDomain || 'jodhaniexport.myshopify.com',
+          'x-shopify-shop-domain': shopDomain || 'store.myshopify.com',
         },
         body: JSON.stringify({
           test: true,
@@ -399,7 +399,7 @@ export default function SettingsPage() {
 
               <div>
                 <label className="block text-xs font-medium text-neutral-500 mb-1.5">
-                  Shop Domain <span className="text-neutral-400 font-normal">(e.g. valamdesign or valamdesign.myshopify.com)</span>
+                  Shop Domain <span className="text-neutral-400 font-normal">(e.g. your-store or your-store.myshopify.com)</span>
                 </label>
                 <input
                   type="text"
@@ -417,7 +417,7 @@ export default function SettingsPage() {
                   className="w-full rounded-md border border-neutral-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black bg-white"
                 />
                 <p className="text-[11px] text-neutral-400 mt-1">
-                  Enter your store name (not an email address). E.g. valamdesign.myshopify.com
+                  Enter your store name (not an email address). E.g. your-store.myshopify.com
                 </p>
               </div>
 

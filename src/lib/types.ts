@@ -79,7 +79,7 @@ export interface OrderActivity {
 export interface Order {
   id: string;
   userId?: string;
-  orderNumber: string; // e.g. "#1001" or "VALAM DESIGN"
+  orderNumber: string; // e.g. "#1001"
   shopifyOrderId?: string;
   shopifyOrderNumber?: string;
   source: 'manual' | 'shopify';

@@ -120,7 +120,7 @@ export default function OrderDetailsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text: newComment,
-          author: 'Dhiren Bhagvanbhai Savaliya',
+          author: 'Team Member',
           role: 'Admin',
         }),
       });
@@ -386,7 +386,7 @@ export default function OrderDetailsPage() {
               <div className="py-2.5 flex items-center justify-between">
                 <span className="text-neutral-500 text-xs">Notes</span>
                 <span className="font-medium text-neutral-900 text-right max-w-md">
-                  {firstItem?.customEngraving || "14K Stamping & engraving Dhiren'"}
+                  {firstItem?.customEngraving || 'None'}
                 </span>
               </div>
             </div>

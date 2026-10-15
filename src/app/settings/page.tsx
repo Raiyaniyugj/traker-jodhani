@@ -17,17 +17,23 @@ import {
   Globe,
   Eye,
   EyeOff,
+  AlertTriangle,
+  Info,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
-import { WebhookLog, WorkspaceSettings } from '@/lib/types';
+import { WebhookLog, WorkspaceSettings, ShopifyConnectionStatus } from '@/lib/types';
 
 export default function SettingsPage() {
   const router = useRouter();
   const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
+  const [shopifyStatus, setShopifyStatus] = useState<ShopifyConnectionStatus | null>(null);
   const [webhookLogs, setWebhookLogs] = useState<WebhookLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [simulating, setSimulating] = useState(false);
+  const [diagnosing, setDiagnosing] = useState(false);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [copiedEvent, setCopiedEvent] = useState(false);
   const [copiedFormat, setCopiedFormat] = useState(false);
@@ -57,13 +63,18 @@ export default function SettingsPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/settings');
-      if (res.status === 401) {
+      const [settingsRes, statusRes] = await Promise.all([
+        fetch('/api/settings'),
+        fetch('/api/shopify/status'),
+      ]);
+
+      if (settingsRes.status === 401) {
         router.push('/login');
         return;
       }
-      if (res.ok) {
-        const data = await res.json();
+
+      if (settingsRes.ok) {
+        const data = await settingsRes.json();
         setSettings(data.settings);
         setWebhookLogs(data.webhookLogs || []);
 
@@ -75,10 +86,43 @@ export default function SettingsPage() {
           setAdminAccessToken(data.settings.shopify?.adminAccessToken || '');
         }
       }
+
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        setShopifyStatus(statusData);
+      }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDiagnoseConnection = async () => {
+    setDiagnosing(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/shopify/status?test=true');
+      const data = await res.json();
+      setShopifyStatus(data);
+      if (data.isConnected) {
+        setMessage({
+          text: `Connection verified! Successfully connected to ${data.shopDomain}. ${data.shopifyOrdersCount} orders currently in workshop.`,
+          type: 'success',
+        });
+      } else {
+        setMessage({
+          text: `Connection problem detected: ${data.problemReason || 'Unable to connect to Shopify.'}`,
+          type: 'error',
+        });
+      }
+    } catch (err: any) {
+      setMessage({
+        text: err.message || 'Error running connection diagnostics.',
+        type: 'error',
+      });
+    } finally {
+      setDiagnosing(false);
     }
   };
 
@@ -292,11 +336,11 @@ export default function SettingsPage() {
                 </p>
               </div>
 
-              {settings?.shopify?.isConnected ? (
+              {shopifyStatus?.isConnected || settings?.shopify?.isConnected ? (
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    {settings.shopify.shopDomain ? `Connected: ${settings.shopify.shopDomain}` : 'Webhook Active & Listening'}
+                    Connected: {shopifyStatus?.shopDomain || settings?.shopify?.shopDomain || 'Shopify Store'}
                   </span>
                   <button
                     type="button"
@@ -307,11 +351,118 @@ export default function SettingsPage() {
                   </button>
                 </div>
               ) : (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-600">
-                  Not Connected
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                  Problem: Not Connected
                 </span>
               )}
             </div>
+
+            {/* Connection Status & Problem Diagnostic Card */}
+            {shopifyStatus?.isConnected || settings?.shopify?.isConnected ? (
+              <div className="mt-4 p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-3">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-semibold text-emerald-950">
+                    ✓ Shopify is properly connected and active
+                  </p>
+                  <p className="mt-0.5 text-emerald-800 leading-relaxed">
+                    {shopifyStatus?.shopifyOrdersCount && shopifyStatus.shopifyOrdersCount > 0
+                      ? `${shopifyStatus.shopifyOrdersCount} orders currently showing on your dashboard from ${shopifyStatus.shopDomain}.`
+                      : `Connected to ${shopifyStatus?.shopDomain || settings?.shopify?.shopDomain}. New orders placed on your store will appear automatically on your Kanban board.`}
+                    {settings?.shopify?.lastSyncAt && (
+                      <span className="text-emerald-700 block mt-1">
+                        Last synced: {new Date(settings.shopify.lastSyncAt).toLocaleString()}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 p-4 rounded-xl bg-gradient-to-r from-rose-50/90 to-amber-50/70 border border-rose-200 text-xs text-neutral-900 space-y-2">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="font-bold text-rose-950">
+                      Why is Shopify not connected?
+                    </p>
+                    <p className="font-medium text-rose-900 leading-relaxed">
+                      Reason: {shopifyStatus?.problemReason || settings?.shopify?.lastError || 'No Shopify store is connected. You need to configure your store domain and token below.'}
+                    </p>
+                    {shopifyStatus?.recommendation && (
+                      <p className="text-[11px] text-neutral-600 mt-1">
+                        👉 <strong>How to resolve:</strong> {shopifyStatus.recommendation}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Integration Health Checklist */}
+            {shopifyStatus && (
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="p-3 rounded-lg border border-neutral-200 bg-neutral-50/70 text-xs flex items-start gap-2.5">
+                  {shopifyStatus.diagnostics.domain.ok ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <span className="font-semibold text-neutral-900 block">
+                      {shopifyStatus.diagnostics.domain.label}
+                    </span>
+                    <span className="text-[11px] text-neutral-500 leading-tight block mt-0.5">
+                      {shopifyStatus.diagnostics.domain.detail}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg border border-neutral-200 bg-neutral-50/70 text-xs flex items-start gap-2.5">
+                  {shopifyStatus.diagnostics.token.ok ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <span className="font-semibold text-neutral-900 block">
+                      {shopifyStatus.diagnostics.token.label}
+                    </span>
+                    <span className="text-[11px] text-neutral-500 leading-tight block mt-0.5">
+                      {shopifyStatus.diagnostics.token.detail}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg border border-neutral-200 bg-neutral-50/70 text-xs flex items-start gap-2.5">
+                  {shopifyStatus.diagnostics.webhook.ok ? (
+                    <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                  )}
+                  <div>
+                    <span className="font-semibold text-neutral-900 block">
+                      {shopifyStatus.diagnostics.webhook.label}
+                    </span>
+                    <span className="text-[11px] text-neutral-500 leading-tight block mt-0.5">
+                      {shopifyStatus.diagnostics.webhook.detail}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg border border-neutral-200 bg-neutral-50/70 text-xs flex items-start gap-2.5">
+                  <Store className="w-4 h-4 text-neutral-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-neutral-900 block">
+                      {shopifyStatus.diagnostics.orders.label}
+                    </span>
+                    <span className="text-[11px] text-neutral-500 leading-tight block mt-0.5">
+                      {shopifyStatus.diagnostics.orders.detail}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Prominent Live Webhook URL Card */}
             <div className="mt-5 p-4 bg-neutral-50 border border-neutral-200 rounded-xl space-y-2">
@@ -507,13 +658,24 @@ export default function SettingsPage() {
 
                   <button
                     type="button"
+                    onClick={handleDiagnoseConnection}
+                    disabled={diagnosing}
+                    className="border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-800 rounded-md px-4 py-2.5 text-sm font-medium transition flex items-center gap-2 shadow-2xs"
+                    title="Run live diagnostics to check connection and explain any problems"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${diagnosing ? 'animate-spin' : ''}`} />
+                    <span>{diagnosing ? 'Diagnosing...' : 'Diagnose Connection'}</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={handleTestWebhookPing}
                     disabled={simulating}
                     className="border border-neutral-300 bg-neutral-50 hover:bg-neutral-100 text-neutral-800 rounded-md px-4 py-2.5 text-sm font-medium transition flex items-center gap-2 shadow-2xs"
                     title="Test that the webhook endpoint is reachable without creating fake orders"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>{simulating ? 'Testing...' : 'Test Webhook Connectivity'}</span>
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>{simulating ? 'Testing...' : 'Test Webhook Ping'}</span>
                   </button>
 
                   <button

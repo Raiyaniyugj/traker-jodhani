@@ -271,31 +271,48 @@ export async function testShopifyConnection(shopDomain: string, accessToken: str
     };
   }
 
+  const trimmedToken = (accessToken || '').trim();
+  if (!trimmedToken) {
+    return {
+      success: false,
+      error: 'Admin API Access Token is empty. A valid token starting with "shpat_" is required to test and sync orders.',
+    };
+  }
+
   const url = `https://${cleanDomain}/admin/api/2024-01/shop.json`;
 
   try {
     const res = await fetch(url, {
       headers: {
-        'X-Shopify-Access-Token': accessToken.trim(),
+        'X-Shopify-Access-Token': trimmedToken,
         'Content-Type': 'application/json',
       },
     });
 
     if (!res.ok) {
       const errText = await res.text();
-      let hint = '';
+      let clearReason = '';
       if (res.status === 401) {
-        hint = ' (Check that your Admin API Access Token starting with "shpat_" is valid and has read permissions)';
+        clearReason = 'Shopify rejected credentials (HTTP 401 Unauthorized): Invalid or expired Admin API Access Token. Ensure the token starts with "shpat_" and was generated with "read_orders" scope.';
+      } else if (res.status === 403) {
+        clearReason = 'Access forbidden (HTTP 403 Forbidden): Your custom app lacks permission. In Shopify Admin → Apps → Develop apps, grant the "read_orders" scope.';
       } else if (res.status === 404) {
-        hint = ' (Check that your store .myshopify.com domain is spelled correctly)';
+        clearReason = `Shopify store "${cleanDomain}" not found (HTTP 404 Not Found): Verify that the .myshopify.com store domain is spelled correctly.`;
+      } else if (res.status === 429) {
+        clearReason = 'Shopify API rate limit exceeded (HTTP 429): Please wait a minute and try again.';
+      } else {
+        clearReason = `Shopify API returned error HTTP ${res.status}: ${errText.slice(0, 150)}`;
       }
-      return { success: false, error: `Shopify responded with HTTP ${res.status}${hint}: ${errText}` };
+      return { success: false, error: clearReason, statusCode: res.status };
     }
 
     const data = await res.json();
     return { success: true, shop: data.shop, domain: cleanDomain };
   } catch (error: any) {
-    return { success: false, error: error.message || 'Network error connecting to Shopify' };
+    return {
+      success: false,
+      error: `Network error reaching https://${cleanDomain}: ${error.message || 'Unable to contact Shopify servers.'}`,
+    };
   }
 }
 

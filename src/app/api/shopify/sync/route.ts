@@ -25,16 +25,30 @@ export async function POST(req: NextRequest) {
     const adminAccessToken = settings.shopify?.adminAccessToken?.trim() || '';
 
     if (!cleanDomain) {
+      const errorMsg = 'Shopify Store Domain is not configured. Please enter your store domain (e.g. yourstore.myshopify.com) in Settings first.';
+      db.updateShopifyConfig(workspaceId, {
+        isConnected: false,
+        lastError: errorMsg,
+      });
+      if (d1) await d1Store.updateSettings(d1, workspaceId, db.getSettings(workspaceId));
       return NextResponse.json({
         success: false,
-        error: 'Please enter and save your Shopify Store Domain in Settings first (e.g. yourstore.myshopify.com).',
+        error: errorMsg,
+        problemReason: errorMsg,
       }, { status: 400 });
     }
 
     if (!adminAccessToken || !adminAccessToken.startsWith('shpat_')) {
+      const errorMsg = 'Shopify Admin API Access Token is required to fetch historical orders. Please generate a custom app token starting with "shpat_" in Shopify Admin → Apps → Develop apps (with "read_orders" scope).';
+      db.updateShopifyConfig(workspaceId, {
+        shopDomain: cleanDomain,
+        lastError: errorMsg,
+      });
+      if (d1) await d1Store.updateSettings(d1, workspaceId, db.getSettings(workspaceId));
       return NextResponse.json({
         success: false,
-        error: 'Shopify Admin API Access Token is required to fetch historical orders. Please generate a custom app token starting with "shpat_" in Shopify Admin → Apps → Develop apps (with "read_orders" scope). Note: New orders placed on your store will arrive automatically via the Webhook URL even without this token.',
+        error: errorMsg,
+        problemReason: errorMsg,
       }, { status: 400 });
     }
 
@@ -44,9 +58,17 @@ export async function POST(req: NextRequest) {
     try {
       rawOrders = await fetchShopifyOrders(cleanDomain, adminAccessToken);
     } catch (apiError: any) {
+      const errorMsg = `Could not fetch orders from Shopify: ${apiError.message}`;
+      db.updateShopifyConfig(workspaceId, {
+        shopDomain: cleanDomain,
+        isConnected: false,
+        lastError: errorMsg,
+      });
+      if (d1) await d1Store.updateSettings(d1, workspaceId, db.getSettings(workspaceId));
       return NextResponse.json({
         success: false,
-        error: `Could not fetch orders from Shopify: ${apiError.message}`,
+        error: errorMsg,
+        problemReason: errorMsg,
       }, { status: 400 });
     }
 
@@ -69,11 +91,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Update last sync time
+    // Update last sync time and clear error
+    const successMsg = importedCount > 0
+      ? `Sync successful! ${importedCount} real Shopify orders imported into New Orders.`
+      : `Connected to ${cleanDomain}. All ${rawOrders.length} orders are already up to date.`;
+
     db.updateShopifyConfig(workspaceId, {
       shopDomain: cleanDomain,
       lastSyncAt: new Date().toISOString(),
       isConnected: true,
+      lastError: '',
+      lastSuccessMessage: successMsg,
     });
 
     const logEntry = {
@@ -95,11 +123,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: importedCount > 0
-        ? `Sync successful! ${importedCount} real Shopify orders imported into New Orders.`
-        : `Connected to ${cleanDomain}. All ${rawOrders.length} orders are already up to date.`,
+      message: successMsg,
       importedCount,
       totalShopifyOrders: rawOrders.length,
+      shopDomain: cleanDomain,
+      isConnected: true,
     });
   } catch (error: any) {
     console.error('Shopify sync error:', error);

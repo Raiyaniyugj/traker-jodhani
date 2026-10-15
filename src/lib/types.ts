@@ -118,6 +118,32 @@ export interface ShopifyConfig {
   isConnected: boolean;
   lastSyncAt?: string;
   autoSync: boolean;
+  lastError?: string;
+  lastSuccessMessage?: string;
+}
+
+export interface ShopifyDiagnosticItem {
+  ok: boolean;
+  label: string;
+  detail: string;
+}
+
+export interface ShopifyConnectionStatus {
+  isConnected: boolean;
+  status: 'connected' | 'error' | 'not_configured' | 'action_required';
+  statusTitle: string;
+  shopDomain: string;
+  shopifyOrdersCount: number;
+  problemReason: string | null;
+  recommendation: string | null;
+  lastSyncAt?: string;
+  lastError?: string;
+  diagnostics: {
+    domain: ShopifyDiagnosticItem;
+    token: ShopifyDiagnosticItem;
+    webhook: ShopifyDiagnosticItem;
+    orders: ShopifyDiagnosticItem & { count: number };
+  };
 }
 
 export interface WebhookLog {

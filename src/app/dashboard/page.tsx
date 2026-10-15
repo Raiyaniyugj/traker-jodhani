@@ -6,15 +6,19 @@ import Header from '@/components/Header';
 import KanbanBoard from '@/components/KanbanBoard';
 import TableView from '@/components/TableView';
 import AddOrderModal from '@/components/AddOrderModal';
+import ShopifyStatusBanner from '@/components/ShopifyStatusBanner';
 import {
   Kanban,
   Table as TableIcon,
   Plus,
   RefreshCw,
   Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Order, PipelineStage, WorkspaceSettings } from '@/lib/types';
+import { Order, PipelineStage, WorkspaceSettings, ShopifyConnectionStatus } from '@/lib/types';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -22,20 +26,30 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
+  const [shopifyStatus, setShopifyStatus] = useState<ShopifyConnectionStatus | null>(null);
   const [metrics, setMetrics] = useState({ totalRevenue: 0, totalProfit: 0 });
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     loadOrders();
+    loadShopifyStatus();
 
     // Live auto-polling every 10 seconds so new Shopify orders appear live without manual clicking
     const interval = setInterval(() => {
       loadOrders(true);
+      loadShopifyStatus();
     }, 10000);
 
-    const handleFocus = () => loadOrders(true);
+    const handleFocus = () => {
+      loadOrders(true);
+      loadShopifyStatus();
+    };
     window.addEventListener('focus', handleFocus);
 
     return () => {
@@ -43,6 +57,18 @@ export default function DashboardPage() {
       window.removeEventListener('focus', handleFocus);
     };
   }, []);
+
+  const loadShopifyStatus = async () => {
+    try {
+      const res = await fetch('/api/shopify/status');
+      if (res.ok) {
+        const data = await res.json();
+        setShopifyStatus(data);
+      }
+    } catch (e) {
+      console.warn('Could not load shopify status:', e);
+    }
+  };
 
   const loadOrders = async (silent: boolean = false) => {
     try {
@@ -90,11 +116,29 @@ export default function DashboardPage() {
 
   const handleQuickSync = async () => {
     setSyncing(true);
+    setSyncFeedback(null);
     try {
-      await fetch('/api/shopify/sync', { method: 'POST' });
-      await loadOrders();
-    } catch (e) {
-      console.error(e);
+      const res = await fetch('/api/shopify/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setSyncFeedback({
+          type: 'success',
+          message: data.message || 'Shopify orders synced successfully!',
+        });
+        await loadOrders(true);
+        await loadShopifyStatus();
+      } else {
+        setSyncFeedback({
+          type: 'error',
+          message: data.error || data.problemReason || 'Failed to sync with Shopify.',
+        });
+        await loadShopifyStatus();
+      }
+    } catch (e: any) {
+      setSyncFeedback({
+        type: 'error',
+        message: e.message || 'Network error attempting to sync with Shopify.',
+      });
     } finally {
       setSyncing(false);
     }
@@ -109,6 +153,34 @@ export default function DashboardPage() {
           title="Master Production Dashboard"
           rightAction={
             <div className="flex items-center gap-2">
+              {shopifyStatus && (
+                <div
+                  className={`hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
+                    shopifyStatus.isConnected
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-rose-50 text-rose-700 border-rose-200'
+                  }`}
+                  title={
+                    shopifyStatus.isConnected
+                      ? `Connected to ${shopifyStatus.shopDomain}`
+                      : `Problem: ${shopifyStatus.problemReason || 'Not connected'}`
+                  }
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      shopifyStatus.isConnected
+                        ? 'bg-emerald-500 animate-pulse'
+                        : 'bg-rose-500'
+                    }`}
+                  />
+                  <span>
+                    {shopifyStatus.isConnected
+                      ? 'Shopify Live'
+                      : 'Shopify Problem'}
+                  </span>
+                </div>
+              )}
+
               <button
                 onClick={handleQuickSync}
                 disabled={syncing}
@@ -116,7 +188,9 @@ export default function DashboardPage() {
                 className="px-3 py-1.5 text-xs font-medium border border-neutral-200 bg-white hover:bg-neutral-50 rounded-lg flex items-center gap-1.5 text-neutral-700 transition"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Sync Shopify</span>
+                <span className="hidden sm:inline">
+                  {syncing ? 'Syncing...' : 'Sync Shopify'}
+                </span>
               </button>
               <button
                 onClick={() => setIsModalOpen(true)}
@@ -129,9 +203,44 @@ export default function DashboardPage() {
           }
         />
 
-        <main className="p-8 flex-1 overflow-x-hidden">
-          {/* Stat Cards - Exact matching screenshot dashboard_clean */}
-          <div className="flex flex-wrap items-center gap-4 mb-8">
+        <main className="p-8 flex-1 overflow-x-hidden space-y-6">
+          {/* Quick Sync Alert Toast if user triggered sync */}
+          {syncFeedback && (
+            <div
+              className={`p-3.5 rounded-xl flex items-center justify-between text-xs sm:text-sm shadow-2xs transition-all ${
+                syncFeedback.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                  : 'bg-rose-50 text-rose-800 border border-rose-200'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                {syncFeedback.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span className="font-medium">{syncFeedback.message}</span>
+              </div>
+              <button
+                onClick={() => setSyncFeedback(null)}
+                className="text-neutral-400 hover:text-black p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Shopify Connection & Problem Diagnostic Banner */}
+          <ShopifyStatusBanner
+            status={shopifyStatus}
+            loading={loading && !shopifyStatus}
+            syncing={syncing}
+            onSync={handleQuickSync}
+            onRefreshStatus={loadShopifyStatus}
+          />
+
+          {/* Stat Cards */}
+          <div className="flex flex-wrap items-center gap-4">
             <div className="bg-white border border-neutral-200 rounded-xl p-5 w-44 shadow-2xs">
               <p className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">
                 TOTAL REVENUE
@@ -152,7 +261,7 @@ export default function DashboardPage() {
           </div>
 
           {/* View Toggles matching original screenshot */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between pt-2">
             <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-0.5 shadow-2xs">
               <button
                 onClick={() => setView('kanban')}
@@ -193,6 +302,7 @@ export default function DashboardPage() {
               stages={stages}
               orders={orders}
               onOrderStageChange={handleStageChange}
+              shopifyConnected={Boolean(shopifyStatus?.isConnected)}
             />
           ) : (
             <TableView orders={orders} stages={stages} />
@@ -204,7 +314,10 @@ export default function DashboardPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         stages={stages}
-        onOrderAdded={loadOrders}
+        onOrderAdded={() => {
+          loadOrders();
+          loadShopifyStatus();
+        }}
       />
     </div>
   );

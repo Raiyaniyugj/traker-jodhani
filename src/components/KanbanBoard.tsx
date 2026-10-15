@@ -8,12 +8,14 @@ interface KanbanBoardProps {
   stages: PipelineStage[];
   orders: Order[];
   onOrderStageChange: (orderId: string, nextStageId: string) => void;
+  shopifyConnected?: boolean;
 }
 
 export default function KanbanBoard({
   stages,
   orders,
   onOrderStageChange,
+  shopifyConnected,
 }: KanbanBoardProps) {
   const getStageOrders = (stageId: string) => {
     return orders.filter((o) => o.currentStageId === stageId && o.status !== 'Delivered');
@@ -47,6 +49,7 @@ export default function KanbanBoard({
         {stages.map((stage) => {
           const stageOrders = getStageOrders(stage.id);
           const nextStage = getNextStage(stage.id);
+          const isFirstStage = stage.order === 1 || stage.name.toLowerCase().includes('new');
 
           return (
             <div
@@ -55,9 +58,27 @@ export default function KanbanBoard({
             >
               {/* Stage Header */}
               <div className="flex items-center justify-between pb-3 px-1 text-sm">
-                <span className="font-medium text-neutral-800 flex items-center gap-2">
-                  {stage.name}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-neutral-800">
+                    {stage.name}
+                  </span>
+                  {isFirstStage && (
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded font-medium border ${
+                        shopifyConnected
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-neutral-100 text-neutral-500 border-neutral-200'
+                      }`}
+                      title={
+                        shopifyConnected
+                          ? 'Shopify orders stream directly into this stage'
+                          : 'Shopify is not connected'
+                      }
+                    >
+                      {shopifyConnected ? 'Shopify Live' : 'Shopify Off'}
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs text-neutral-400 font-mono">
                   {stageOrders.length}
                 </span>
@@ -66,12 +87,20 @@ export default function KanbanBoard({
               {/* Column Content */}
               <div className="bg-neutral-100/60 rounded-xl p-2.5 min-h-[460px] flex flex-col gap-2.5 border border-neutral-200/60">
                 {stageOrders.length === 0 ? (
-                  <div className="h-full min-h-[200px] flex items-center justify-center text-xs text-neutral-400 font-medium">
-                    No orders
+                  <div className="h-full min-h-[200px] flex flex-col items-center justify-center p-4 text-center text-xs text-neutral-400 font-medium">
+                    <p>No orders</p>
+                    {isFirstStage && (
+                      <p className="text-[11px] text-neutral-400 mt-1 max-w-[180px]">
+                        {shopifyConnected
+                          ? 'Connected to Shopify · Live orders will appear here automatically'
+                          : 'Shopify not connected. Connect in Settings to auto-import orders.'}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   stageOrders.map((order) => {
                     const firstItem = order.items[0];
+                    const isShopify = order.source === 'shopify' || Boolean(order.shopifyOrderId);
 
                     return (
                       <div
@@ -79,14 +108,25 @@ export default function KanbanBoard({
                         className="bg-white rounded-lg p-3.5 border border-neutral-200 shadow-2xs hover:shadow-md transition group"
                       >
                         <div className="flex items-start justify-between gap-2">
-                          <Link
-                            href={`/orders/${order.id}`}
-                            className="font-serif font-semibold text-base text-neutral-900 hover:text-black hover:underline line-clamp-1"
-                          >
-                            {order.orderNumber}
-                          </Link>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <Link
+                              href={`/orders/${order.id}`}
+                              className="font-serif font-semibold text-base text-neutral-900 hover:text-black hover:underline line-clamp-1"
+                            >
+                              {order.orderNumber}
+                            </Link>
+                            {isShopify && (
+                              <span
+                                className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0"
+                                title="Order imported from Shopify"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Shopify
+                              </span>
+                            )}
+                          </div>
                           <span
-                            className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${getPriorityColor(
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-medium border shrink-0 ${getPriorityColor(
                               order.priority
                             )}`}
                           >

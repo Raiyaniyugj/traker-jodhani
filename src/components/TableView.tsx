@@ -57,12 +57,20 @@ export default function TableView({ orders, stages }: TableViewProps) {
               return (
                 <tr key={order.id} className="hover:bg-neutral-50/70 transition">
                   <td className="py-4 px-6">
-                    <Link
-                      href={`/orders/${order.id}`}
-                      className="font-medium text-neutral-900 hover:text-black hover:underline"
-                    >
-                      {order.orderNumber}
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/orders/${order.id}`}
+                        className="font-medium text-neutral-900 hover:text-black hover:underline"
+                      >
+                        {order.orderNumber}
+                      </Link>
+                      {(order.source === 'shopify' || Boolean(order.shopifyOrderId)) && (
+                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Shopify
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-neutral-400 mt-0.5">
                       {order.items[0]?.title || 'Custom Piece'}
                     </p>

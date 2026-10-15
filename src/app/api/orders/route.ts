@@ -102,23 +102,23 @@ export async function POST(req: NextRequest) {
       orderNumber: body.orderNumber || `#${Math.floor(1000 + Math.random() * 9000)}`,
       source: 'manual',
       customer: {
-        name: customerName || 'Valued Client',
-        email: customerEmail || 'client@example.com',
-        phone: customerPhone || '+91 98765 43210',
+        name: customerName || 'Client',
+        email: customerEmail || '',
+        phone: customerPhone || '',
       },
       shippingAddress: {
         address1: body.address1 || '',
         city: body.city || '',
         province: body.province || '',
         zip: body.zip || '',
-        country: body.country || 'India',
+        country: body.country || '',
       },
       billingAddress: {
         address1: body.address1 || '',
         city: body.city || '',
         province: body.province || '',
         zip: body.zip || '',
-        country: body.country || 'India',
+        country: body.country || '',
       },
       items: [
         {

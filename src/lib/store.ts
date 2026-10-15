@@ -20,6 +20,7 @@ interface DatabaseData {
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'database.json');
+const TMP_DB_FILE = path.join('/tmp', 'trackerz_database.json');
 
 export const TEMPLATE_STAGES = [
   { name: 'New Orders', order: 1, roles: ['Admin'] as Role[] },
@@ -34,6 +35,21 @@ export const TEMPLATE_STAGES = [
 ];
 
 function initDatabase(): DatabaseData {
+  // Check /tmp file first if running in serverless (e.g. Vercel)
+  try {
+    if (fs.existsSync(TMP_DB_FILE)) {
+      const raw = fs.readFileSync(TMP_DB_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      return {
+        settings: parsed.settings || {},
+        stages: Array.isArray(parsed.stages) ? parsed.stages : [],
+        users: Array.isArray(parsed.users) ? parsed.users : [],
+        orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+        webhookLogs: Array.isArray(parsed.webhookLogs) ? parsed.webhookLogs : [],
+      };
+    }
+  } catch {}
+
   try {
     if (fs.existsSync(DB_FILE)) {
       const raw = fs.readFileSync(DB_FILE, 'utf-8');
@@ -67,6 +83,10 @@ function initDatabase(): DatabaseData {
     // Read-only filesystem in serverless environments
   }
 
+  try {
+    fs.writeFileSync(TMP_DB_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
+  } catch {}
+
   return initialData;
 }
 
@@ -79,6 +99,10 @@ function saveDatabase(data: DatabaseData) {
   } catch {
     // In-memory cache continues to serve the state even if filesystem is read-only
   }
+
+  try {
+    fs.writeFileSync(TMP_DB_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  } catch {}
 }
 
 // Memory cache
@@ -108,13 +132,14 @@ export const db = {
     email: string,
     role: Role,
     password?: string,
-    ownerId?: string
+    ownerId?: string,
+    customId?: string
   ): User {
     const current = getDB();
     const cleanEmail = email.toLowerCase().trim();
     const existingIndex = current.users.findIndex((u) => u.email.toLowerCase().trim() === cleanEmail);
 
-    const id = `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const id = customId || `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
     const newUser: User & { password?: string } = {
       id,
       ownerId: ownerId || id,

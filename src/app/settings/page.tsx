@@ -83,11 +83,13 @@ export default function SettingsPage() {
   };
 
   const computeWebhookUrl = () => {
+    const uidParam = settings?.userId ? `?uid=${settings.userId}` : '';
     if (customHost && customHost.trim()) {
       const clean = customHost.trim().replace(/^https?:\/\//, '').replace(/\/$/, '');
-      return `https://${clean}/api/webhooks/shopify/orders-create`;
+      return `https://${clean}/api/webhooks/shopify/orders-create${uidParam}`;
     }
-    return webhookUrl || 'http://localhost:3000/api/webhooks/shopify/orders-create';
+    const base = webhookUrl || 'http://localhost:3000/api/webhooks/shopify/orders-create';
+    return base.includes('?') ? base : `${base}${uidParam}`;
   };
 
   const handleCopyWebhook = () => {

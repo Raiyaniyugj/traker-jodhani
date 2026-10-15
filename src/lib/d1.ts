@@ -171,23 +171,44 @@ export const d1Store = {
         .prepare('SELECT * FROM settings WHERE user_id = ? OR id = ?')
         .bind(userId, userId)
         .first();
-      if (!row) return null;
-      return {
-        userId: row.user_id || row.id,
-        companyName: row.company_name || 'My Jewelry Atelier',
-        ownerName: row.owner_name || '',
-        email: row.email || '',
-        phone: row.phone || '',
-        currency: row.currency || '$',
+      if (row) {
+        return {
+          userId: row.user_id || row.id,
+          companyName: row.company_name || 'My Jewelry Atelier',
+          ownerName: row.owner_name || '',
+          email: row.email || '',
+          phone: row.phone || '',
+          currency: row.currency || '$',
+          shopify: {
+            shopDomain: row.shopify_shop_domain || '',
+            webhookSecret: row.shopify_webhook_secret || '',
+            adminAccessToken: row.shopify_admin_access_token || '',
+            isConnected: Boolean(row.shopify_is_connected),
+            lastSyncAt: row.shopify_last_sync_at || '',
+            autoSync: Boolean(row.shopify_auto_sync),
+          },
+        };
+      }
+
+      // Auto-provision fresh individual settings for this user in D1
+      const initialSettings: WorkspaceSettings = {
+        userId,
+        companyName: 'My Jewelry Atelier',
+        ownerName: '',
+        email: '',
+        phone: '',
+        currency: '$',
         shopify: {
-          shopDomain: row.shopify_shop_domain || '',
-          webhookSecret: row.shopify_webhook_secret || '',
-          adminAccessToken: row.shopify_admin_access_token || '',
-          isConnected: Boolean(row.shopify_is_connected),
-          lastSyncAt: row.shopify_last_sync_at || '',
-          autoSync: Boolean(row.shopify_auto_sync),
+          shopDomain: '',
+          webhookSecret: '',
+          adminAccessToken: '',
+          isConnected: false,
+          lastSyncAt: '',
+          autoSync: true,
         },
       };
+      await this.updateSettings(db, userId, initialSettings);
+      return initialSettings;
     } catch (e) {
       console.error('D1 getSettings error:', e);
       return null;
@@ -266,14 +287,43 @@ export const d1Store = {
         .prepare('SELECT * FROM stages WHERE user_id = ? ORDER BY stage_order ASC')
         .bind(userId)
         .all();
-      if (!results || results.length === 0) return [];
-      return results.map((r: any) => ({
-        id: r.id,
-        userId: r.user_id,
-        name: r.name,
-        order: Number(r.stage_order),
-        roles: safeJsonParse(r.roles, ['Admin']),
+      if (results && results.length > 0) {
+        return results.map((r: any) => ({
+          id: r.id,
+          userId: r.user_id,
+          name: r.name,
+          order: Number(r.stage_order),
+          roles: safeJsonParse(r.roles, ['Admin']),
+        }));
+      }
+
+      // Auto-provision 9 individual template stages for this user in D1
+      const initialStages = [
+        { name: 'New Orders', order: 1, roles: ['Admin'] },
+        { name: 'CAD Design', order: 2, roles: ['Admin', 'CAD Designer'] },
+        { name: 'RPT', order: 3, roles: ['Admin'] },
+        { name: 'Casting', order: 4, roles: ['Admin', 'Manufacturer'] },
+        { name: 'Factory', order: 5, roles: ['Admin', 'Manufacturer'] },
+        { name: 'Quality Check', order: 6, roles: ['Admin', 'CAD Designer', 'Manufacturer'] },
+        { name: 'Packaging', order: 7, roles: ['Admin', 'Manufacturer'] },
+        { name: 'Shipping', order: 8, roles: ['Admin'] },
+        { name: 'Completed', order: 9, roles: ['Admin'] },
+      ].map((t, idx) => ({
+        id: `stg_${userId}_${idx + 1}`,
+        userId,
+        name: t.name,
+        order: t.order,
+        roles: t.roles,
       }));
+
+      for (const st of initialStages) {
+        await db
+          .prepare('INSERT OR REPLACE INTO stages (id, user_id, name, stage_order, roles) VALUES (?, ?, ?, ?, ?)')
+          .bind(st.id, userId, st.name, st.order, JSON.stringify(st.roles || []))
+          .run();
+      }
+
+      return initialStages as PipelineStage[];
     } catch (e) {
       console.error('D1 getStages error:', e);
       return [];

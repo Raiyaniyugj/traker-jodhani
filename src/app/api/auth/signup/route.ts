@@ -44,9 +44,7 @@ export async function POST(req: NextRequest) {
     const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     // Add user to local store
-    const newUser = db.addUser(fullName.trim(), cleanEmail, 'Admin', hashedPassword, userId);
-    newUser.id = userId;
-    newUser.ownerId = userId;
+    const newUser = db.addUser(fullName.trim(), cleanEmail, 'Admin', hashedPassword, userId, userId);
 
     // Initialize workspace settings
     const company = companyName?.trim() || `${fullName.trim()}'s Atelier`;

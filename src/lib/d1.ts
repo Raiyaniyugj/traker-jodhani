@@ -1,6 +1,7 @@
 import { Order, PipelineStage, User, WorkspaceSettings, WebhookLog } from './types';
+import { neonStore, getNeonSql } from './neon';
 
-// Safely obtain Cloudflare D1 binding if running inside Cloudflare Workers
+// Safely obtain database binding: Cloudflare D1 if on Cloudflare Workers, otherwise Neon PostgreSQL
 export function getD1Database(): any | null {
   try {
     const { getCloudflareContext } = require('@opennextjs/cloudflare');
@@ -11,7 +12,51 @@ export function getD1Database(): any | null {
   } catch {
     // Outside Cloudflare context or build time
   }
-  return null;
+
+  // Neon PostgreSQL provider with D1-compatible prepare() fallback
+  return {
+    type: 'neon',
+    prepare(query: string) {
+      const sql = getNeonSql();
+      return {
+        bind(...args: any[]) {
+          return {
+            async first() {
+              let idx = 1;
+              const pgQuery = query.replace(/\?/g, () => `$${idx++}`);
+              const rows = await (sql as any).query(pgQuery, args);
+              return rows && rows[0] ? rows[0] : null;
+            },
+            async all() {
+              let idx = 1;
+              const pgQuery = query.replace(/\?/g, () => `$${idx++}`);
+              const rows = await (sql as any).query(pgQuery, args);
+              return { results: rows || [] };
+            },
+            async run() {
+              let idx = 1;
+              const pgQuery = query.replace(/\?/g, () => `$${idx++}`).replace(/datetime\('now'\)/g, 'NOW()');
+              await (sql as any).query(pgQuery, args);
+              return { meta: { changes: 1 } };
+            },
+          };
+        },
+        async first() {
+          const rows = await (sql as any).query(query);
+          return rows && rows[0] ? rows[0] : null;
+        },
+        async all() {
+          const rows = await (sql as any).query(query);
+          return { results: rows || [] };
+        },
+        async run() {
+          const pgQuery = query.replace(/datetime\('now'\)/g, 'NOW()');
+          await (sql as any).query(pgQuery);
+          return { meta: { changes: 1 } };
+        },
+      };
+    },
+  };
 }
 
 // Convert D1 database row to Order object
@@ -78,10 +123,13 @@ function safeJsonParse(val: any, fallback: any) {
   }
 }
 
-// D1 Operations with User & Workspace Isolation
+// D1 Operations with User & Workspace Isolation (supports Neon PostgreSQL & Cloudflare D1)
 export const d1Store = {
   // --- USERS & AUTH ---
   async getUserByEmail(db: any, email: string): Promise<(User & { password?: string; ownerId?: string }) | null> {
+    if (db?.type === 'neon') {
+      return neonStore.getUserByEmail(email);
+    }
     try {
       const row = await db
         .prepare('SELECT * FROM users WHERE lower(email) = lower(?)')
@@ -104,6 +152,9 @@ export const d1Store = {
   },
 
   async getUserById(db: any, id: string): Promise<(User & { password?: string; ownerId?: string }) | null> {
+    if (db?.type === 'neon') {
+      return neonStore.getUserById(id);
+    }
     try {
       const row = await db.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
       if (!row) return null;
@@ -123,6 +174,9 @@ export const d1Store = {
   },
 
   async saveUser(db: any, u: User & { password?: string; ownerId?: string }): Promise<void> {
+    if (db?.type === 'neon') {
+      return neonStore.saveUser(u);
+    }
     try {
       await db
         .prepare(
@@ -144,6 +198,9 @@ export const d1Store = {
   },
 
   async getUsers(db: any, ownerId: string): Promise<User[]> {
+    if (db?.type === 'neon') {
+      return neonStore.getUsers(ownerId);
+    }
     try {
       const { results } = await db
         .prepare('SELECT id, owner_id, name, email, role, created_at FROM users WHERE owner_id = ? OR id = ? ORDER BY created_at ASC')
@@ -166,6 +223,9 @@ export const d1Store = {
 
   // --- WORKSPACE SETTINGS ---
   async getSettings(db: any, userId: string): Promise<WorkspaceSettings | null> {
+    if (db?.type === 'neon') {
+      return neonStore.getSettings(userId);
+    }
     try {
       const row = await db
         .prepare('SELECT * FROM settings WHERE user_id = ? OR id = ?')
@@ -219,6 +279,9 @@ export const d1Store = {
     db: any,
     shopDomain: string
   ): Promise<{ userId: string; settings: WorkspaceSettings } | null> {
+    if (db?.type === 'neon') {
+      return neonStore.getSettingsByShopDomain(shopDomain);
+    }
     try {
       const clean = shopDomain.toLowerCase().trim();
       const row = await db
@@ -250,6 +313,9 @@ export const d1Store = {
   },
 
   async updateSettings(db: any, userId: string, s: WorkspaceSettings): Promise<void> {
+    if (db?.type === 'neon') {
+      return neonStore.updateSettings(userId, s);
+    }
     try {
       await db
         .prepare(
@@ -282,6 +348,9 @@ export const d1Store = {
 
   // --- PIPELINE STAGES ---
   async getStages(db: any, userId: string): Promise<PipelineStage[]> {
+    if (db?.type === 'neon') {
+      return neonStore.getStages(userId);
+    }
     try {
       const { results } = await db
         .prepare('SELECT * FROM stages WHERE user_id = ? ORDER BY stage_order ASC')
@@ -331,6 +400,9 @@ export const d1Store = {
   },
 
   async setStages(db: any, userId: string, stages: PipelineStage[]): Promise<void> {
+    if (db?.type === 'neon') {
+      return neonStore.setStages(userId, stages);
+    }
     try {
       await db.prepare('DELETE FROM stages WHERE user_id = ?').bind(userId).run();
       for (const st of stages) {
@@ -346,6 +418,9 @@ export const d1Store = {
 
   // --- ORDERS ---
   async getOrders(db: any, userId: string): Promise<Order[]> {
+    if (db?.type === 'neon') {
+      return neonStore.getOrders(userId);
+    }
     try {
       const { results } = await db
         .prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC')
@@ -360,6 +435,9 @@ export const d1Store = {
   },
 
   async getOrderById(db: any, id: string, userId?: string): Promise<Order | null> {
+    if (db?.type === 'neon') {
+      return neonStore.getOrderById(id, userId);
+    }
     try {
       let row;
       if (userId) {
@@ -382,6 +460,9 @@ export const d1Store = {
   },
 
   async saveOrder(db: any, o: Order & { userId: string }): Promise<void> {
+    if (db?.type === 'neon') {
+      return neonStore.saveOrder(o);
+    }
     try {
       await db
         .prepare(
@@ -438,6 +519,9 @@ export const d1Store = {
   },
 
   async deleteOrder(db: any, id: string, userId: string): Promise<boolean> {
+    if (db?.type === 'neon') {
+      return neonStore.deleteOrder(id, userId);
+    }
     try {
       const res = await db.prepare('DELETE FROM orders WHERE id = ? AND user_id = ?').bind(id, userId).run();
       return res.meta?.changes > 0;
@@ -449,6 +533,9 @@ export const d1Store = {
 
   // --- WEBHOOK LOGS ---
   async getWebhookLogs(db: any, userId: string): Promise<WebhookLog[]> {
+    if (db?.type === 'neon') {
+      return neonStore.getWebhookLogs(userId);
+    }
     try {
       const { results } = await db
         .prepare('SELECT * FROM webhook_logs WHERE user_id = ? ORDER BY received_at DESC LIMIT 50')
@@ -472,6 +559,9 @@ export const d1Store = {
   },
 
   async addWebhookLog(db: any, log: WebhookLog & { userId?: string }): Promise<void> {
+    if (db?.type === 'neon') {
+      return neonStore.addWebhookLog(log);
+    }
     try {
       await db
         .prepare(

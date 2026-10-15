@@ -1,7 +1,44 @@
 {
-  "settings": {},
-  "stages": [],
-  "users": [],
+  "settings": {
+    "usr_23se02it025": {
+      "userId": "usr_23se02it025",
+      "companyName": "Jodhani Atelier",
+      "ownerName": "Yug Raiyani",
+      "email": "23se02it025@ppsu.ac.in",
+      "phone": "",
+      "currency": "$",
+      "shopify": {
+        "shopDomain": "",
+        "webhookSecret": "",
+        "adminAccessToken": "",
+        "isConnected": false,
+        "lastSyncAt": "",
+        "autoSync": true
+      }
+    }
+  },
+  "stages": [
+    { "id": "stg_usr_23se02it025_1", "userId": "usr_23se02it025", "name": "New Orders", "order": 1, "roles": ["Admin"] },
+    { "id": "stg_usr_23se02it025_2", "userId": "usr_23se02it025", "name": "CAD Design", "order": 2, "roles": ["Admin", "CAD Designer"] },
+    { "id": "stg_usr_23se02it025_3", "userId": "usr_23se02it025", "name": "RPT", "order": 3, "roles": ["Admin"] },
+    { "id": "stg_usr_23se02it025_4", "userId": "usr_23se02it025", "name": "Casting", "order": 4, "roles": ["Admin", "Manufacturer"] },
+    { "id": "stg_usr_23se02it025_5", "userId": "usr_23se02it025", "name": "Factory", "order": 5, "roles": ["Admin", "Manufacturer"] },
+    { "id": "stg_usr_23se02it025_6", "userId": "usr_23se02it025", "name": "Quality Check", "order": 6, "roles": ["Admin", "CAD Designer", "Manufacturer"] },
+    { "id": "stg_usr_23se02it025_7", "userId": "usr_23se02it025", "name": "Packaging", "order": 7, "roles": ["Admin", "Manufacturer"] },
+    { "id": "stg_usr_23se02it025_8", "userId": "usr_23se02it025", "name": "Shipping", "order": 8, "roles": ["Admin"] },
+    { "id": "stg_usr_23se02it025_9", "userId": "usr_23se02it025", "name": "Completed", "order": 9, "roles": ["Admin"] }
+  ],
+  "users": [
+    {
+      "id": "usr_23se02it025",
+      "ownerId": "usr_23se02it025",
+      "name": "Yug Raiyani",
+      "email": "23se02it025@ppsu.ac.in",
+      "role": "Admin",
+      "password": "ef36f9242a1d25275085c0cbd8f02d5200c6e39174f1214229d984ae317a0785",
+      "createdAt": "2026-10-15T18:20:00.000Z"
+    }
+  ],
   "orders": [],
   "webhookLogs": []
 }

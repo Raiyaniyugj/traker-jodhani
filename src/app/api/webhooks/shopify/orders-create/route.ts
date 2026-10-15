@@ -52,29 +52,37 @@ export async function POST(req: NextRequest) {
       matchedWorkspace = db.getSettingsByShopDomain(detectedShop);
     }
 
-    // Auto-match fallback: If shop domain not explicitly pre-saved in settings,
-    // automatically link to the active registered atelier workspace!
+    // Strict multi-tenant routing fallback:
+    // Only auto-link to single atelier if there is exactly 1 registered workspace.
+    // When multiple users exist, webhooks must match their shop domain or have ?uid=<userId>.
     if (!matchedWorkspace) {
       if (d1) {
-        const userRow = await d1
-          .prepare('SELECT id, owner_id FROM users ORDER BY created_at DESC LIMIT 1')
-          .first();
-        if (userRow) {
-          const uId = (userRow.owner_id as string) || (userRow.id as string);
+        const users = await d1Store.getUsers(d1, '');
+        if (users && users.length === 1) {
+          const uId = users[0].ownerId || users[0].id;
           const uSettings = await d1Store.getSettings(d1, uId);
           matchedWorkspace = { userId: uId, settings: uSettings };
         }
       }
       if (!matchedWorkspace) {
         const users = db.getUsers('');
-        if (users.length > 0) {
+        if (users.length === 1) {
           const uId = users[0].ownerId || users[0].id;
           matchedWorkspace = { userId: uId, settings: db.getSettings(uId) };
         }
       }
     }
 
-    const workspaceId = matchedWorkspace?.userId || 'usr_default';
+    if (!matchedWorkspace) {
+      return NextResponse.json(
+        {
+          error: `Unrecognized atelier workspace. Please configure your shop domain (${detectedShop || 'unknown'}) in Settings or use your personalized webhook URL containing ?uid=<userId>.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const workspaceId = matchedWorkspace.userId;
     const secret = matchedWorkspace?.settings?.shopify?.webhookSecret?.trim() || '';
 
     // Automatically mark Shopify as connected and update shop domain if detected

@@ -7,9 +7,7 @@ import { useRouter } from 'next/navigation';
 export default function SignupPage() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    companyName: '',
     fullName: '',
-    phone: '',
     email: '',
     password: '',
   });
@@ -75,20 +73,6 @@ export default function SignupPage() {
         >
           <div>
             <label className="block text-xs font-medium text-neutral-500 mb-1">
-              Company / Atelier Name
-            </label>
-            <input
-              required
-              name="companyName"
-              placeholder="e.g. Aurum Fine Jewelry"
-              value={formData.companyName}
-              onChange={handleChange}
-              className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-neutral-400"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-neutral-500 mb-1">
               Your Name
             </label>
             <input
@@ -99,31 +83,6 @@ export default function SignupPage() {
               onChange={handleChange}
               className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-neutral-400"
             />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-neutral-500 mb-1">
-              Phone Number
-            </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-neutral-300 bg-neutral-50 text-sm text-neutral-600">
-                +91
-              </span>
-              <input
-                type="tel"
-                inputMode="numeric"
-                required
-                maxLength={10}
-                pattern="[6-9][0-9]{9}"
-                title="Enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9."
-                name="phone"
-                placeholder="9876543210"
-                value={formData.phone}
-                onChange={handleChange}
-                className="w-full rounded-r-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-black placeholder:text-neutral-400"
-              />
-            </div>
-            <p className="text-[11px] text-neutral-400 mt-1">10-digit Indian mobile number</p>
           </div>
 
           <div>

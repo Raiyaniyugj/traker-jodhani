@@ -5,7 +5,7 @@ import { hashPassword, setSessionCookie } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await req.json();
+    const { email, password, rememberMe } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
@@ -51,13 +51,17 @@ export async function POST(req: NextRequest) {
       redirect: '/dashboard',
     });
 
-    setSessionCookie(response, {
-      id: user.id,
-      ownerId,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    });
+    setSessionCookie(
+      response,
+      {
+        id: user.id,
+        ownerId,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+      rememberMe !== false
+    );
 
     return response;
   } catch (error: any) {

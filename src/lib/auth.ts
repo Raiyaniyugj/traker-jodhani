@@ -39,7 +39,8 @@ export function getSessionUser(req: NextRequest): SessionUser | null {
 
 export function setSessionCookie(
   response: NextResponse,
-  user: { id: string; ownerId?: string; email: string; name: string; role: Role }
+  user: { id: string; ownerId?: string; email: string; name: string; role: Role },
+  rememberMe: boolean = true
 ) {
   const sessionData: SessionUser = {
     userId: user.id,
@@ -49,12 +50,14 @@ export function setSessionCookie(
     role: user.role,
   };
 
+  const maxAge = rememberMe ? 60 * 60 * 24 * 365 : 60 * 60 * 24 * 30; // 1 year if rememberMe, otherwise 30 days
+
   response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), {
     path: '/',
     httpOnly: false, // Accessible to client-side scripts if needed
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    maxAge,
   });
 }
 

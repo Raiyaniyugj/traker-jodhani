@@ -13,8 +13,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "traker-jodhani-db",
-      "database_id": "03c81cac-b23a-4ac9-bb7a-cba42ec58744"
+      "database_name": "track",
+      "database_id": "4d500da3-f329-4041-a4e9-5395a517e9a8"
     }
   ]
 }

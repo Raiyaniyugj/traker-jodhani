@@ -1,9 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Order, PipelineStage } from '@/lib/types';
-import { ChevronRight, ExternalLink, ArrowRight, Diamond } from 'lucide-react';
-
+import { ChevronRight, ExternalLink, ArrowRight, Diamond, ZoomIn, X } from 'lucide-react';
 
 interface TableViewProps {
   orders: Order[];
@@ -12,6 +12,19 @@ interface TableViewProps {
 }
 
 export default function TableView({ orders, stages, onOrderStageChange }: TableViewProps) {
+  const [previewImage, setPreviewImage] = useState<{
+    url: string;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPreviewImage(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
   const getStageName = (stageId: string) => {
     return stages.find((s) => s.id === stageId)?.name || 'Processing';
   };
@@ -90,11 +103,27 @@ export default function TableView({ orders, stages, onOrderStageChange }: TableV
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
                       {primaryItem?.imageUrl || order.gallery?.[0]?.url ? (
-                        <img
-                          src={primaryItem?.imageUrl || order.gallery?.[0]?.url}
-                          alt={primaryItem?.title || 'Jewelry'}
-                          className="w-11 h-11 rounded-lg object-cover border border-neutral-200 shrink-0 shadow-2xs"
-                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewImage({
+                              url: primaryItem?.imageUrl || order.gallery?.[0]?.url,
+                              title: `${order.orderNumber} · ${primaryItem?.title || 'Custom Fine Jewelry'}`,
+                              subtitle: `Client: ${order.customer.name} · Paid: $${order.total.toLocaleString()}`,
+                            })
+                          }
+                          className="relative group/img w-11 h-11 rounded-lg overflow-hidden border border-neutral-200 shrink-0 shadow-2xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-black"
+                          title="Click to zoom image"
+                        >
+                          <img
+                            src={primaryItem?.imageUrl || order.gallery?.[0]?.url}
+                            alt={primaryItem?.title || 'Jewelry'}
+                            className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-black/35 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white">
+                            <ZoomIn className="w-3.5 h-3.5 drop-shadow" />
+                          </div>
+                        </button>
                       ) : (
                         <div className="w-11 h-11 rounded-lg bg-neutral-100 border border-neutral-200 flex items-center justify-center shrink-0 text-neutral-400">
                           <Diamond className="w-4 h-4" />
@@ -203,6 +232,69 @@ export default function TableView({ orders, stages, onOrderStageChange }: TableV
           </tbody>
         </table>
       </div>
+
+      {/* Zoom Image Lightbox Modal */}
+      {previewImage && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200"
+        >
+          {/* Header Controls */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-4xl flex items-center justify-between pb-3 text-white"
+          >
+            <div className="min-w-0 pr-4">
+              <h3 className="text-base sm:text-lg font-serif font-semibold truncate text-white">
+                {previewImage.title}
+              </h3>
+              {previewImage.subtitle && (
+                <p className="text-xs text-neutral-300 mt-0.5">{previewImage.subtitle}</p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <a
+                href={previewImage.url}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium text-white flex items-center gap-1.5 transition"
+                title="Open original high-res image in new tab"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Original
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition focus:outline-none cursor-pointer"
+                title="Close (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Centered High-Res Image Card */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-4xl max-h-[80vh] flex items-center justify-center bg-black/40 rounded-2xl overflow-hidden border border-white/10 shadow-2xl p-2"
+          >
+            <img
+              src={previewImage.url}
+              alt={previewImage.title}
+              className="max-w-full max-h-[76vh] object-contain rounded-xl select-none"
+            />
+          </div>
+
+          <p className="text-neutral-400 text-xs mt-3 flex items-center gap-1">
+            Click anywhere outside or press <kbd className="px-1.5 py-0.5 bg-white/10 text-white rounded text-[10px] font-mono">Esc</kbd> to close
+          </p>
+        </div>
+      )}
     </div>
   );
 }

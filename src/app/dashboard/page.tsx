@@ -5,11 +5,13 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import KanbanBoard from '@/components/KanbanBoard';
 import TableView from '@/components/TableView';
+import OrderSwimlaneView from '@/components/OrderSwimlaneView';
 import AddOrderModal from '@/components/AddOrderModal';
 import ShopifyStatusBanner from '@/components/ShopifyStatusBanner';
 import {
   Kanban,
   Table as TableIcon,
+  Rows,
   Plus,
   RefreshCw,
   Sparkles,
@@ -22,7 +24,7 @@ import { Order, PipelineStage, WorkspaceSettings, ShopifyConnectionStatus } from
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [view, setView] = useState<'kanban' | 'table'>('table');
+  const [view, setView] = useState<'swimlane' | 'kanban' | 'table'>('swimlane');
   const [orders, setOrders] = useState<Order[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
@@ -269,6 +271,22 @@ export default function DashboardPage() {
             <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-0.5 shadow-2xs">
               <button
                 onClick={() => {
+                  setView('swimlane');
+                  try {
+                    localStorage.setItem('trackerz_view_mode', 'swimlane');
+                  } catch {}
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${
+                  view === 'swimlane'
+                    ? 'bg-neutral-900 text-white shadow-2xs'
+                    : 'text-neutral-500 hover:text-black'
+                }`}
+              >
+                <Rows className="w-3.5 h-3.5" />
+                <span>Line-Wise Pipeline</span>
+              </button>
+              <button
+                onClick={() => {
                   setView('kanban');
                   try {
                     localStorage.setItem('trackerz_view_mode', 'kanban');
@@ -276,12 +294,12 @@ export default function DashboardPage() {
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${
                   view === 'kanban'
-                    ? 'bg-neutral-100 text-neutral-900 shadow-2xs'
+                    ? 'bg-neutral-900 text-white shadow-2xs'
                     : 'text-neutral-500 hover:text-black'
                 }`}
               >
                 <Kanban className="w-3.5 h-3.5" />
-                <span>Kanban View</span>
+                <span>Kanban Board</span>
               </button>
               <button
                 onClick={() => {
@@ -292,7 +310,7 @@ export default function DashboardPage() {
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${
                   view === 'table'
-                    ? 'bg-neutral-100 text-neutral-900 shadow-2xs'
+                    ? 'bg-neutral-900 text-white shadow-2xs'
                     : 'text-neutral-500 hover:text-black'
                 }`}
               >
@@ -306,11 +324,18 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* Main Board / Table */}
+          {/* Main Board / Swimlane / Table */}
           {loading ? (
             <div className="py-20 text-center text-sm text-neutral-400 animate-pulse">
               Loading workshop orders...
             </div>
+          ) : view === 'swimlane' ? (
+            <OrderSwimlaneView
+              orders={orders}
+              stages={stages}
+              onOrderStageChange={handleStageChange}
+              shopifyConnected={Boolean(shopifyStatus?.isConnected)}
+            />
           ) : view === 'kanban' ? (
             <KanbanBoard
               stages={stages}

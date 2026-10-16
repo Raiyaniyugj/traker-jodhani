@@ -247,24 +247,25 @@ export default function DashboardPage() {
 
           {/* Stat Cards */}
           <div className="flex flex-wrap items-center gap-4">
-            <div className="bg-white border border-neutral-200 rounded-xl p-5 w-44 shadow-2xs">
+            <div className="bg-white border border-neutral-200 rounded-xl px-5 py-4 min-w-[220px] shadow-2xs">
               <p className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">
                 TOTAL REVENUE
               </p>
-              <p className="font-sans font-bold text-2xl sm:text-3xl text-neutral-900 mt-1">
-                ${metrics.totalRevenue.toLocaleString()}
+              <p className="font-sans font-bold text-2xl text-neutral-900 mt-1 tracking-tight whitespace-nowrap">
+                ${metrics.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
 
-            <div className="bg-white border border-neutral-200 rounded-xl p-5 w-44 shadow-2xs">
+            <div className="bg-white border border-neutral-200 rounded-xl px-5 py-4 min-w-[220px] shadow-2xs">
               <p className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">
                 TOTAL PROFIT
               </p>
-              <p className="font-sans font-bold text-2xl sm:text-3xl text-neutral-900 mt-1">
-                ${metrics.totalProfit.toLocaleString()}
+              <p className="font-sans font-bold text-2xl text-neutral-900 mt-1 tracking-tight whitespace-nowrap">
+                ${metrics.totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
           </div>
+
 
           {/* View Toggles matching original screenshot */}
           <div className="flex items-center justify-between pt-2">

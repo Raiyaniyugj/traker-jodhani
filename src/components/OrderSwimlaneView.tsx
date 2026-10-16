@@ -175,31 +175,42 @@ export default function OrderSwimlaneView({
                 <div className="flex flex-col lg:flex-row lg:items-center gap-6 justify-between">
                   {/* Left Column: Order Card Metadata */}
                   <div className="lg:w-80 shrink-0 space-y-2 border-b lg:border-b-0 lg:border-r border-neutral-100 pb-4 lg:pb-0 lg:pr-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/orders/${order.id}`}
-                          className="font-serif font-bold text-lg text-neutral-900 hover:text-black hover:underline"
-                        >
-                          {order.orderNumber}
-                        </Link>
-                        {(order.source === 'shopify' || Boolean(order.shopifyOrderId)) && (
-                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            Shopify
-                          </span>
-                        )}
-                      </div>
-                      {getPriorityBadge(order.priority)}
-                    </div>
+                    <div className="flex items-start gap-3">
+                      {primaryItem?.imageUrl || order.gallery?.[0]?.url ? (
+                        <img
+                          src={primaryItem?.imageUrl || order.gallery?.[0]?.url}
+                          alt={primaryItem?.title || 'Jewelry Piece'}
+                          className="w-14 h-14 rounded-lg object-cover border border-neutral-200 shrink-0 shadow-2xs mt-0.5"
+                        />
+                      ) : null}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Link
+                              href={`/orders/${order.id}`}
+                              className="font-serif font-bold text-lg text-neutral-900 hover:text-black hover:underline"
+                            >
+                              {order.orderNumber}
+                            </Link>
+                            {(order.source === 'shopify' || Boolean(order.shopifyOrderId)) && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                Shopify
+                              </span>
+                            )}
+                          </div>
+                          {getPriorityBadge(order.priority)}
+                        </div>
 
-                    <div>
-                      <p className="text-xs font-semibold text-neutral-900 leading-tight">
-                        {primaryItem?.title || 'Custom Fine Jewelry'}
-                      </p>
-                      <p className="text-[11px] text-neutral-500 mt-0.5">
-                        Client: <span className="font-medium text-neutral-700">{order.customer.name}</span>
-                      </p>
+                        <div>
+                          <p className="text-xs font-semibold text-neutral-900 leading-tight">
+                            {primaryItem?.title || 'Custom Fine Jewelry'}
+                          </p>
+                          <p className="text-[11px] text-neutral-500 mt-0.5">
+                            Client: <span className="font-medium text-neutral-700">{order.customer.name}</span>
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Jewelry Specifications tags */}

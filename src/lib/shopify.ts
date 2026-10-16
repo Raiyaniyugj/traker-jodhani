@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { db } from './store';
-import { Order, OrderItem } from './types';
+import { Order, OrderItem, OrderMedia } from './types';
 
 /**
  * Verify Shopify Webhook HMAC signature
@@ -142,9 +142,39 @@ export function parseShopifyOrderPayload(payload: any, userId?: string): Order {
       customEngraving,
       quantity: li.quantity || 1,
       price: parseFloat(li.price || '0'),
-      imageUrl: li.image?.src || (li.image_url ? li.image_url : ''),
+      imageUrl: li.image_url || li.image?.src || li.image?.url || (Array.isArray(li.product_images) ? li.product_images[0] : ''),
       shopifyProductId: li.product_id,
     };
+  });
+
+  // Automatically populate Gallery with high-res product photos from Shopify
+  const galleryItems: OrderMedia[] = [];
+  lineItems.forEach((li, idx) => {
+    if (li.imageUrl) {
+      galleryItems.push({
+        id: `img-shopify-${idx}-main-${Date.now()}`,
+        title: `${li.title} (Shopify Product Photo)`,
+        url: li.imageUrl,
+        type: 'general',
+        uploadedAt: payload.created_at || new Date().toISOString(),
+      });
+    }
+  });
+
+  (payload.line_items || []).forEach((li: any, idx: number) => {
+    if (Array.isArray(li.product_images)) {
+      li.product_images.forEach((imgUrl: string, pIdx: number) => {
+        if (imgUrl && !galleryItems.some((g) => g.url === imgUrl)) {
+          galleryItems.push({
+            id: `img-shopify-${idx}-${pIdx}-${Date.now()}`,
+            title: `${li.title || 'Jewelry'} (Angle ${pIdx + 1})`,
+            url: imgUrl,
+            type: 'general',
+            uploadedAt: payload.created_at || new Date().toISOString(),
+          });
+        }
+      });
+    }
   });
 
   const subtotal = parseFloat(payload.subtotal_price || payload.total_line_items_price || '0');
@@ -198,7 +228,7 @@ export function parseShopifyOrderPayload(payload: any, userId?: string): Order {
     notesFromCustomer: payload.note || 'No notes from customer.',
     internalNotes: `Auto-imported from Shopify store. Ready for CAD design.`,
     customerTrackingToken: `tr_${Math.random().toString(36).substring(2, 10)}`,
-    gallery: [],
+    gallery: galleryItems,
     comments: [
       {
         id: `c-${Date.now()}`,
@@ -325,33 +355,132 @@ export async function fetchShopifyOrders(shopDomain: string, accessToken: string
     throw new Error('Invalid shop domain. Please provide your store name or .myshopify.com address.');
   }
 
-  // status=any retrieves open, unfulfilled, and recently placed orders
-  const url = `https://${cleanDomain}/admin/api/2024-01/orders.json?status=any&limit=50`;
+  // 1. Try GraphQL first to get orders with line item images and product gallery images
+  const gqlQuery = `{
+    orders(first: 50, sortKey: CREATED_AT, reverse: true) {
+      nodes {
+        id
+        legacyResourceId
+        name
+        createdAt
+        note
+        totalPriceSet { shopMoney { amount currencyCode } }
+        subtotalPriceSet { shopMoney { amount } }
+        totalShippingPriceSet { shopMoney { amount } }
+        customer { firstName lastName email phone }
+        shippingAddress { address1 address2 city province zip country }
+        billingAddress { address1 address2 city province zip country }
+        lineItems(first: 10) {
+          nodes {
+            id
+            title
+            quantity
+            originalUnitPriceSet { shopMoney { amount } }
+            variantTitle
+            sku
+            customAttributes { key value }
+            image { url }
+            product {
+              id
+              productType
+              featuredImage { url }
+              images(first: 8) { nodes { url } }
+            }
+          }
+        }
+      }
+    }
+  }`;
 
   try {
-    const res = await fetch(url, {
+    const gqlRes = await fetch(`https://${cleanDomain}/admin/api/2024-01/graphql.json`, {
+      method: 'POST',
       headers: {
         'X-Shopify-Access-Token': accessToken.trim(),
         'Content-Type': 'application/json',
       },
+      body: JSON.stringify({ query: gqlQuery }),
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      let hint = '';
-      if (res.status === 401) {
-        hint = ' [Invalid Admin API Token or missing read_orders scope]';
-      } else if (res.status === 404) {
-        hint = ' [Store domain not found]';
-      }
-      throw new Error(`Shopify API error (${res.status})${hint}: ${errText}`);
-    }
+    if (gqlRes.ok) {
+      const gqlData = await gqlRes.json();
+      const nodes = gqlData?.data?.orders?.nodes;
+      if (Array.isArray(nodes)) {
+        return nodes.map((node: any) => {
+          const rawId = node.legacyResourceId || String(node.id || '').replace('gid://shopify/Order/', '');
+          const lineItems = (node.lineItems?.nodes || []).map((li: any) => {
+            const prodImages = (li.product?.images?.nodes || []).map((img: any) => img.url).filter(Boolean);
+            const featuredImg = li.image?.url || li.product?.featuredImage?.url || prodImages[0] || '';
+            const props = (li.customAttributes || []).map((attr: any) => ({
+              name: attr.key,
+              value: attr.value,
+            }));
 
-    const data = await res.json();
-    return data.orders || [];
-  } catch (error: any) {
-    throw error;
+            return {
+              id: String(li.id || '').replace('gid://shopify/LineItem/', ''),
+              title: li.title,
+              quantity: li.quantity || 1,
+              price: li.originalUnitPriceSet?.shopMoney?.amount || '0',
+              variant_title: li.variantTitle || '',
+              sku: li.sku || '',
+              product_type: li.product?.productType || '',
+              image_url: featuredImg,
+              image: { src: featuredImg },
+              product_images: prodImages,
+              properties: props,
+            };
+          });
+
+          return {
+            id: rawId,
+            name: node.name,
+            order_number: node.name?.replace('#', '') || rawId,
+            created_at: node.createdAt,
+            note: node.note || '',
+            total_price: node.totalPriceSet?.shopMoney?.amount || '0',
+            subtotal_price: node.subtotalPriceSet?.shopMoney?.amount || '0',
+            total_shipping_price: node.totalShippingPriceSet?.shopMoney?.amount || '0',
+            customer: node.customer
+              ? {
+                  first_name: node.customer.firstName || '',
+                  last_name: node.customer.lastName || '',
+                  email: node.customer.email || '',
+                  phone: node.customer.phone || '',
+                }
+              : null,
+            shipping_address: node.shippingAddress || null,
+            billing_address: node.billingAddress || null,
+            line_items: lineItems,
+          };
+        });
+      }
+    }
+  } catch (gqlErr) {
+    console.warn('GraphQL fetch orders error, falling back to REST:', gqlErr);
   }
+
+  // 2. Fallback to REST API
+  const url = `https://${cleanDomain}/admin/api/2024-01/orders.json?status=any&limit=50`;
+  const res = await fetch(url, {
+    headers: {
+      'X-Shopify-Access-Token': accessToken.trim(),
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    let hint = '';
+    if (res.status === 401) {
+      hint = ' [Invalid Admin API Token or missing read_orders scope]';
+    } else if (res.status === 404) {
+      hint = ' [Store domain not found]';
+    }
+    throw new Error(`Shopify API error (${res.status})${hint}: ${errText}`);
+  }
+
+  const data = await res.json();
+  return data.orders || [];
 }
 
 /**

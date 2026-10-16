@@ -306,9 +306,17 @@ export default function OrderDetailsPage() {
           <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-2xs">
             <div className="flex items-start justify-between pb-4 border-b border-neutral-100">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-neutral-100 rounded-lg flex items-center justify-center text-neutral-400 border border-neutral-200">
-                  <Diamond className="w-6 h-6 text-neutral-400" />
-                </div>
+                {firstItem?.imageUrl || order.gallery[0]?.url ? (
+                  <img
+                    src={firstItem?.imageUrl || order.gallery[0]?.url}
+                    alt={firstItem?.title || 'Jewelry Piece'}
+                    className="w-16 h-16 rounded-xl object-cover border border-neutral-200 shadow-2xs"
+                  />
+                ) : (
+                  <div className="w-14 h-14 bg-neutral-100 rounded-lg flex items-center justify-center text-neutral-400 border border-neutral-200">
+                    <Diamond className="w-6 h-6 text-neutral-400" />
+                  </div>
+                )}
                 <div>
                   <span className="inline-block text-[11px] font-medium px-2 py-0.5 rounded bg-blue-50 text-blue-700 mb-1">
                     {stages.find((s) => s.id === order.currentStageId)?.name || 'Production'}

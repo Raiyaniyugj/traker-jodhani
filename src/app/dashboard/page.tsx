@@ -22,7 +22,7 @@ import { Order, PipelineStage, WorkspaceSettings, ShopifyConnectionStatus } from
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [view, setView] = useState<'kanban' | 'table'>('kanban');
+  const [view, setView] = useState<'kanban' | 'table'>('table');
   const [orders, setOrders] = useState<Order[]>([]);
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
@@ -37,6 +37,10 @@ export default function DashboardPage() {
   } | null>(null);
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem('trackerz_view_mode') as 'kanban' | 'table' | null;
+      if (saved) setView(saved);
+    } catch {}
     loadOrders();
     loadShopifyStatus();
 
@@ -264,7 +268,12 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between pt-2">
             <div className="inline-flex rounded-lg border border-neutral-200 bg-white p-0.5 shadow-2xs">
               <button
-                onClick={() => setView('kanban')}
+                onClick={() => {
+                  setView('kanban');
+                  try {
+                    localStorage.setItem('trackerz_view_mode', 'kanban');
+                  } catch {}
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${
                   view === 'kanban'
                     ? 'bg-neutral-100 text-neutral-900 shadow-2xs'
@@ -275,7 +284,12 @@ export default function DashboardPage() {
                 <span>Kanban View</span>
               </button>
               <button
-                onClick={() => setView('table')}
+                onClick={() => {
+                  setView('table');
+                  try {
+                    localStorage.setItem('trackerz_view_mode', 'table');
+                  } catch {}
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${
                   view === 'table'
                     ? 'bg-neutral-100 text-neutral-900 shadow-2xs'
@@ -305,7 +319,11 @@ export default function DashboardPage() {
               shopifyConnected={Boolean(shopifyStatus?.isConnected)}
             />
           ) : (
-            <TableView orders={orders} stages={stages} />
+            <TableView
+              orders={orders}
+              stages={stages}
+              onOrderStageChange={handleStageChange}
+            />
           )}
         </main>
       </div>

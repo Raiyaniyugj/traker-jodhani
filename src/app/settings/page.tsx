@@ -575,11 +575,16 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1.5">
-                  Webhook Signing Secret{' '}
-                  <span className="text-emerald-600 font-semibold">
-                    (100% Optional — Leave BLANK if you can&apos;t find it)
+                <label className="text-xs font-medium text-neutral-500 mb-1.5 flex items-center justify-between">
+                  <span>
+                    Webhook Signing Secret{' '}
+                    <span className="text-emerald-600 font-semibold">
+                      (100% Optional — Leave BLANK if you can&apos;t find it)
+                    </span>
                   </span>
+                  {webhookSecret ? (
+                    <span className="text-[11px] text-emerald-600 font-medium font-mono">✓ Secret saved</span>
+                  ) : null}
                 </label>
                 <div className="relative">
                   <input
@@ -611,11 +616,16 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1.5">
-                  Shopify Admin API Access Token{' '}
-                  <span className="text-neutral-400 font-normal">
-                    (Optional — needed only to import past historical orders via &quot;Sync Orders Now&quot;)
+                <label className="text-xs font-medium text-neutral-500 mb-1.5 flex items-center justify-between">
+                  <span>
+                    Shopify Admin API Access Token{' '}
+                    <span className="text-neutral-400 font-normal">
+                      (Optional — needed only to import past historical orders via &quot;Sync Orders Now&quot;)
+                    </span>
                   </span>
+                  {adminAccessToken ? (
+                    <span className="text-[11px] text-emerald-600 font-medium font-mono">✓ Token saved</span>
+                  ) : null}
                 </label>
                 <div className="relative">
                   <input
@@ -653,7 +663,7 @@ export default function SettingsPage() {
                     disabled={saving}
                     className="bg-black text-white rounded-md px-6 py-2.5 text-sm font-medium hover:bg-neutral-800 transition disabled:opacity-50"
                   >
-                    {saving ? 'Connecting...' : 'Connect Store'}
+                    {saving ? 'Saving...' : (shopifyStatus?.isConnected || settings?.shopify?.isConnected ? 'Save Connection' : 'Connect Store')}
                   </button>
 
                   <button

@@ -21,7 +21,10 @@ export async function GET(req: NextRequest) {
 
     if (d1) {
       const d1Settings = await d1Store.getSettings(d1, workspaceId);
-      if (d1Settings) settings = d1Settings;
+      if (d1Settings) {
+        settings = d1Settings;
+        db.updateSettings(workspaceId, d1Settings);
+      }
 
       const d1Logs = await d1Store.getWebhookLogs(d1, workspaceId);
       if (d1Logs) webhookLogs = d1Logs;
@@ -52,17 +55,17 @@ export async function GET(req: NextRequest) {
       if (!liveResult.success) {
         liveTestError = liveResult.error || 'Live test connection failed';
         db.updateShopifyConfig(workspaceId, {
-          isConnected: false,
           lastError: liveTestError,
         });
-        if (d1) await d1Store.updateSettings(d1, workspaceId, db.getSettings(workspaceId));
       } else {
         db.updateShopifyConfig(workspaceId, {
           isConnected: true,
           lastError: '',
           lastSyncAt: new Date().toISOString(),
         });
-        if (d1) await d1Store.updateSettings(d1, workspaceId, db.getSettings(workspaceId));
+        if (d1) {
+          await d1Store.updateSettings(d1, workspaceId, db.getSettings(workspaceId));
+        }
       }
     }
 
@@ -117,24 +120,26 @@ export async function GET(req: NextRequest) {
       statusTitle = 'Shopify Connection Problem';
       problemReason = effectiveError;
       recommendation = 'Check your store domain and ensure your Admin API Access Token has "read_orders" scope in Shopify Admin.';
-    } else if (storedIsConnected && (tokenOk || ordersOk || webhookOk)) {
+    } else if (cleanDomain && (tokenOk || ordersOk || webhookOk || storedIsConnected)) {
       isConnected = true;
       status = 'connected';
       statusTitle = 'Shopify Connected';
       problemReason = null;
-    } else if (!tokenOk && !ordersOk && !webhookOk) {
+      if (!storedIsConnected && d1) {
+        db.updateShopifyConfig(workspaceId, { isConnected: true });
+        await d1
+          .prepare(`UPDATE settings SET shopify_is_connected = 1, updated_at = NOW() WHERE user_id = ? OR id = ?`)
+          .bind(workspaceId, workspaceId)
+          .run()
+          .catch(() => {});
+      }
+    } else {
       status = 'action_required';
       statusTitle = 'Shopify Setup Incomplete';
       problemReason = 'Store domain is entered, but no Admin API Access Token is configured and no webhook orders have arrived yet.';
       recommendation = 'Add a Shopify Admin API token starting with "shpat_" in Settings to sync existing orders, or paste the Webhook URL into Shopify Admin.';
-    } else {
-      // Partially connected (e.g. domain configured, isConnected flag set)
-      isConnected = storedIsConnected;
-      status = storedIsConnected ? 'connected' : 'action_required';
-      statusTitle = storedIsConnected ? 'Shopify Connected' : 'Connection Pending';
-      problemReason = storedIsConnected ? null : 'Awaiting order sync or webhook events from Shopify.';
-      recommendation = 'Click "Sync Shopify" or test webhook connectivity in Settings.';
     }
+
 
     const payload: ShopifyConnectionStatus = {
       isConnected,

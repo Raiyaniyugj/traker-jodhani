@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
 
     if (d1) {
       const d1Settings = await d1Store.getSettings(d1, workspaceId);
-      if (d1Settings) settings = d1Settings;
+      if (d1Settings) {
+        settings = d1Settings;
+        db.updateSettings(workspaceId, d1Settings);
+      }
       const d1Logs = await d1Store.getWebhookLogs(d1, workspaceId);
       if (d1Logs) webhookLogs = d1Logs;
     }
@@ -40,8 +43,15 @@ export async function POST(req: NextRequest) {
     const workspaceId = session.ownerId || session.userId;
     const body = await req.json();
 
-    const updated = db.updateSettings(workspaceId, body);
     const d1 = getD1Database();
+    if (d1) {
+      const existingSettings = await d1Store.getSettings(d1, workspaceId);
+      if (existingSettings) {
+        db.updateSettings(workspaceId, existingSettings);
+      }
+    }
+
+    const updated = db.updateSettings(workspaceId, body);
     if (d1) {
       await d1Store.updateSettings(d1, workspaceId, updated);
     }

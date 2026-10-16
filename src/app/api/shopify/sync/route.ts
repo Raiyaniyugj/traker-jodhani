@@ -18,7 +18,10 @@ export async function POST(req: NextRequest) {
     let settings = db.getSettings(workspaceId);
     if (d1) {
       const d1Settings = await d1Store.getSettings(d1, workspaceId);
-      if (d1Settings) settings = d1Settings;
+      if (d1Settings) {
+        settings = d1Settings;
+        db.updateSettings(workspaceId, d1Settings);
+      }
     }
 
     const rawDomain = settings.shopify?.shopDomain || '';
@@ -27,11 +30,6 @@ export async function POST(req: NextRequest) {
 
     if (!cleanDomain) {
       const errorMsg = 'Shopify Store Domain is not configured. Please enter your store domain (e.g. yourstore.myshopify.com) in Settings first.';
-      db.updateShopifyConfig(workspaceId, {
-        isConnected: false,
-        lastError: errorMsg,
-      });
-      if (d1) await d1Store.updateSettings(d1, workspaceId, db.getSettings(workspaceId));
       return NextResponse.json({
         success: false,
         error: errorMsg,
@@ -41,11 +39,6 @@ export async function POST(req: NextRequest) {
 
     if (!adminAccessToken || !adminAccessToken.startsWith('shpat_')) {
       const errorMsg = 'Shopify Admin API Access Token is required to fetch historical orders. Please generate a custom app token starting with "shpat_" in Shopify Admin → Apps → Develop apps (with "read_orders" scope).';
-      db.updateShopifyConfig(workspaceId, {
-        shopDomain: cleanDomain,
-        lastError: errorMsg,
-      });
-      if (d1) await d1Store.updateSettings(d1, workspaceId, db.getSettings(workspaceId));
       return NextResponse.json({
         success: false,
         error: errorMsg,
@@ -60,12 +53,6 @@ export async function POST(req: NextRequest) {
       rawOrders = await fetchShopifyOrders(cleanDomain, adminAccessToken);
     } catch (apiError: any) {
       const errorMsg = `Could not fetch orders from Shopify: ${apiError.message}`;
-      db.updateShopifyConfig(workspaceId, {
-        shopDomain: cleanDomain,
-        isConnected: false,
-        lastError: errorMsg,
-      });
-      if (d1) await d1Store.updateSettings(d1, workspaceId, db.getSettings(workspaceId));
       return NextResponse.json({
         success: false,
         error: errorMsg,

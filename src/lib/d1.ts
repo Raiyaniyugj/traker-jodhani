@@ -346,6 +346,28 @@ export const d1Store = {
     }
   },
 
+  async disconnectShopify(db: any, userId: string): Promise<void> {
+    if (db?.type === 'neon') {
+      return neonStore.disconnectShopify(userId);
+    }
+    try {
+      await db
+        .prepare(
+          `UPDATE settings
+           SET shopify_shop_domain = '',
+               shopify_webhook_secret = '',
+               shopify_admin_access_token = '',
+               shopify_is_connected = 0,
+               updated_at = datetime('now')
+           WHERE user_id = ? OR id = ?`
+        )
+        .bind(userId, userId)
+        .run();
+    } catch (e) {
+      console.error('D1 disconnectShopify error:', e);
+    }
+  },
+
   // --- PIPELINE STAGES ---
   async getStages(db: any, userId: string): Promise<PipelineStage[]> {
     if (db?.type === 'neon') {

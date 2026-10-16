@@ -271,21 +271,51 @@ export const neonStore = {
         )
         ON CONFLICT (id) DO UPDATE SET
           user_id = EXCLUDED.user_id,
-          company_name = EXCLUDED.company_name,
-          owner_name = EXCLUDED.owner_name,
-          email = EXCLUDED.email,
-          phone = EXCLUDED.phone,
-          currency = EXCLUDED.currency,
-          shopify_shop_domain = EXCLUDED.shopify_shop_domain,
-          shopify_webhook_secret = EXCLUDED.shopify_webhook_secret,
-          shopify_admin_access_token = EXCLUDED.shopify_admin_access_token,
-          shopify_is_connected = EXCLUDED.shopify_is_connected,
-          shopify_last_sync_at = EXCLUDED.shopify_last_sync_at,
+          company_name = COALESCE(NULLIF(EXCLUDED.company_name, ''), settings.company_name),
+          owner_name = COALESCE(NULLIF(EXCLUDED.owner_name, ''), settings.owner_name),
+          email = COALESCE(NULLIF(EXCLUDED.email, ''), settings.email),
+          phone = COALESCE(NULLIF(EXCLUDED.phone, ''), settings.phone),
+          currency = COALESCE(NULLIF(EXCLUDED.currency, ''), settings.currency),
+          shopify_shop_domain = CASE
+            WHEN EXCLUDED.shopify_shop_domain <> '' THEN EXCLUDED.shopify_shop_domain
+            ELSE settings.shopify_shop_domain
+          END,
+          shopify_webhook_secret = CASE
+            WHEN EXCLUDED.shopify_webhook_secret <> '' THEN EXCLUDED.shopify_webhook_secret
+            ELSE settings.shopify_webhook_secret
+          END,
+          shopify_admin_access_token = CASE
+            WHEN EXCLUDED.shopify_admin_access_token <> '' THEN EXCLUDED.shopify_admin_access_token
+            ELSE settings.shopify_admin_access_token
+          END,
+          shopify_is_connected = CASE
+            WHEN EXCLUDED.shopify_is_connected = 1 THEN 1
+            ELSE settings.shopify_is_connected
+          END,
+          shopify_last_sync_at = COALESCE(NULLIF(EXCLUDED.shopify_last_sync_at, ''), settings.shopify_last_sync_at),
           shopify_auto_sync = EXCLUDED.shopify_auto_sync,
           updated_at = EXCLUDED.updated_at
       `;
+
     } catch (e) {
       console.error('Neon updateSettings error:', e);
+    }
+  },
+
+  async disconnectShopify(userId: string): Promise<void> {
+    try {
+      const sql = getNeonSql();
+      await sql`
+        UPDATE settings
+        SET shopify_shop_domain = '',
+            shopify_webhook_secret = '',
+            shopify_admin_access_token = '',
+            shopify_is_connected = 0,
+            updated_at = NOW()
+        WHERE user_id = ${userId} OR id = ${userId}
+      `;
+    } catch (e) {
+      console.error('Neon disconnectShopify error:', e);
     }
   },
 

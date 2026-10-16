@@ -31,6 +31,22 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Sort orders latest first by numeric order number (#1070 first), then createdAt
+    const getOrderNumberVal = (ord: any) => {
+      const raw = ord.orderNumber || '';
+      const match = String(raw).match(/\d+/);
+      return match ? parseInt(match[0], 10) : 0;
+    };
+
+    orders.sort((a, b) => {
+      const numA = getOrderNumberVal(a);
+      const numB = getOrderNumberVal(b);
+      if (numA !== numB) {
+        return numB - numA;
+      }
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+
     // Calculate metrics
     const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
     const totalProfit = orders.reduce((sum, o) => sum + (o.profit || 0), 0);

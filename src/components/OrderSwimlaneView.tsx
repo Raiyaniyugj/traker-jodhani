@@ -93,10 +93,22 @@ export default function OrderSwimlaneView({
     return matchesSearch && matchesStage;
   });
 
-  // Sort orders descending by created_at (newest #1070 first)
-  const sortedOrders = [...filteredOrders].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  // Helper to extract numeric order number (e.g. "#1070" -> 1070)
+  const getOrderNumberVal = (ord: Order) => {
+    const raw = ord.orderNumber || '';
+    const match = raw.match(/\d+/);
+    return match ? parseInt(match[0], 10) : 0;
+  };
+
+  // Sort orders descending by latest order number (#1070 first), then created_at
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    const numA = getOrderNumberVal(a);
+    const numB = getOrderNumberVal(b);
+    if (numA !== numB) {
+      return numB - numA;
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   return (
     <div className="space-y-4">

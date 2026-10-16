@@ -17,8 +17,23 @@ export default function KanbanBoard({
   onOrderStageChange,
   shopifyConnected,
 }: KanbanBoardProps) {
+  const getOrderNumberVal = (ord: Order) => {
+    const raw = ord.orderNumber || '';
+    const match = raw.match(/\d+/);
+    return match ? parseInt(match[0], 10) : 0;
+  };
+
   const getStageOrders = (stageId: string) => {
-    return orders.filter((o) => o.currentStageId === stageId && o.status !== 'Delivered');
+    return orders
+      .filter((o) => o.currentStageId === stageId && o.status !== 'Delivered')
+      .sort((a, b) => {
+        const numA = getOrderNumberVal(a);
+        const numB = getOrderNumberVal(b);
+        if (numA !== numB) {
+          return numB - numA;
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
   };
 
   const getNextStage = (currentStageId: string): PipelineStage | null => {

@@ -46,10 +46,22 @@ export default function TableView({ orders, stages, onOrderStageChange }: TableV
     );
   }
 
-  // Sort orders descending by created date
-  const sortedOrders = [...orders].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  // Helper to extract numeric order number (e.g. "#1070" -> 1070)
+  const getOrderNumberVal = (ord: Order) => {
+    const raw = ord.orderNumber || '';
+    const match = raw.match(/\d+/);
+    return match ? parseInt(match[0], 10) : 0;
+  };
+
+  // Sort orders descending by latest order number (#1070 first), then created date
+  const sortedOrders = [...orders].sort((a, b) => {
+    const numA = getOrderNumberVal(a);
+    const numB = getOrderNumberVal(b);
+    if (numA !== numB) {
+      return numB - numA;
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   return (
     <div className="bg-white border border-neutral-200 rounded-xl overflow-hidden shadow-2xs">

@@ -330,111 +330,132 @@ export async function fetchShopifyOrders(shopDomain: string, accessToken: string
   }
 
   // 1. Try GraphQL first to get orders with line item images and product gallery images
-  const gqlQuery = `{
-    orders(first: 50, sortKey: CREATED_AT, reverse: true) {
-      nodes {
-        id
-        legacyResourceId
-        name
-        createdAt
-        note
-        totalPriceSet { shopMoney { amount currencyCode } }
-        subtotalPriceSet { shopMoney { amount } }
-        totalShippingPriceSet { shopMoney { amount } }
-        customer { firstName lastName email phone }
-        shippingAddress { address1 address2 city province zip country }
-        billingAddress { address1 address2 city province zip country }
-        lineItems(first: 10) {
+  try {
+    let allNodes: any[] = [];
+    let hasNextPage = true;
+    let endCursor: string | null = null;
+    let pageCount = 0;
+
+    while (hasNextPage && pageCount < 5) {
+      pageCount++;
+      const afterClause: string = endCursor ? `, after: "${endCursor}"` : '';
+      const gqlQuery = `{
+        orders(first: 250, sortKey: CREATED_AT, reverse: true${afterClause}) {
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
           nodes {
             id
-            title
-            quantity
-            originalUnitPriceSet { shopMoney { amount } }
-            variantTitle
-            sku
-            customAttributes { key value }
-            image { url }
-            product {
-              id
-              productType
-              featuredImage { url }
-              images(first: 8) { nodes { url } }
+            legacyResourceId
+            name
+            createdAt
+            note
+            totalPriceSet { shopMoney { amount currencyCode } }
+            subtotalPriceSet { shopMoney { amount } }
+            totalShippingPriceSet { shopMoney { amount } }
+            customer { firstName lastName email phone }
+            shippingAddress { address1 address2 city province zip country }
+            billingAddress { address1 address2 city province zip country }
+            lineItems(first: 20) {
+              nodes {
+                id
+                title
+                quantity
+                originalUnitPriceSet { shopMoney { amount } }
+                variantTitle
+                sku
+                customAttributes { key value }
+                image { url }
+                product {
+                  id
+                  productType
+                  featuredImage { url }
+                  images(first: 8) { nodes { url } }
+                }
+              }
             }
           }
         }
-      }
-    }
-  }`;
+      }`;
 
-  try {
-    const gqlRes = await fetch(`https://${cleanDomain}/admin/api/2024-01/graphql.json`, {
-      method: 'POST',
-      headers: {
-        'X-Shopify-Access-Token': accessToken.trim(),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query: gqlQuery }),
-    });
+      const gqlRes = await fetch(`https://${cleanDomain}/admin/api/2024-01/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'X-Shopify-Access-Token': accessToken.trim(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: gqlQuery }),
+      });
 
-    if (gqlRes.ok) {
+      if (!gqlRes.ok) break;
+
       const gqlData = await gqlRes.json();
-      const nodes = gqlData?.data?.orders?.nodes;
+      const pageData = gqlData?.data?.orders;
+      const nodes = pageData?.nodes;
       if (Array.isArray(nodes)) {
-        return nodes.map((node: any) => {
-          const rawId = node.legacyResourceId || String(node.id || '').replace('gid://shopify/Order/', '');
-          const lineItems = (node.lineItems?.nodes || []).map((li: any) => {
-            const prodImages = (li.product?.images?.nodes || []).map((img: any) => img.url).filter(Boolean);
-            const featuredImg = li.image?.url || li.product?.featuredImage?.url || prodImages[0] || '';
-            const props = (li.customAttributes || []).map((attr: any) => ({
-              name: attr.key,
-              value: attr.value,
-            }));
+        allNodes = allNodes.concat(nodes);
+      }
+      hasNextPage = Boolean(pageData?.pageInfo?.hasNextPage);
+      endCursor = pageData?.pageInfo?.endCursor || null;
+      if (!endCursor) break;
+    }
 
-            return {
-              id: String(li.id || '').replace('gid://shopify/LineItem/', ''),
-              title: li.title,
-              quantity: li.quantity || 1,
-              price: li.originalUnitPriceSet?.shopMoney?.amount || '0',
-              variant_title: li.variantTitle || '',
-              sku: li.sku || '',
-              product_type: li.product?.productType || '',
-              image_url: featuredImg,
-              image: { src: featuredImg },
-              product_images: prodImages,
-              properties: props,
-            };
-          });
+    if (allNodes.length > 0) {
+      return allNodes.map((node: any) => {
+        const rawId = node.legacyResourceId || String(node.id || '').replace('gid://shopify/Order/', '');
+        const lineItems = (node.lineItems?.nodes || []).map((li: any) => {
+          const prodImages = (li.product?.images?.nodes || []).map((img: any) => img.url).filter(Boolean);
+          const featuredImg = li.image?.url || li.product?.featuredImage?.url || prodImages[0] || '';
+          const props = (li.customAttributes || []).map((attr: any) => ({
+            name: attr.key,
+            value: attr.value,
+          }));
 
           return {
-            id: rawId,
-            name: node.name,
-            order_number: node.name?.replace('#', '') || rawId,
-            created_at: node.createdAt,
-            note: node.note || '',
-            total_price: node.totalPriceSet?.shopMoney?.amount || '0',
-            subtotal_price: node.subtotalPriceSet?.shopMoney?.amount || '0',
-            total_shipping_price: node.totalShippingPriceSet?.shopMoney?.amount || '0',
-            customer: node.customer
-              ? {
-                  first_name: node.customer.firstName || '',
-                  last_name: node.customer.lastName || '',
-                  email: node.customer.email || '',
-                  phone: node.customer.phone || '',
-                }
-              : null,
-            shipping_address: node.shippingAddress || null,
-            billing_address: node.billingAddress || null,
-            line_items: lineItems,
+            id: String(li.id || '').replace('gid://shopify/LineItem/', ''),
+            title: li.title,
+            quantity: li.quantity || 1,
+            price: li.originalUnitPriceSet?.shopMoney?.amount || '0',
+            variant_title: li.variantTitle || '',
+            sku: li.sku || '',
+            product_type: li.product?.productType || '',
+            image_url: featuredImg,
+            image: { src: featuredImg },
+            product_images: prodImages,
+            properties: props,
           };
         });
-      }
+
+        return {
+          id: rawId,
+          name: node.name,
+          order_number: node.name?.replace('#', '') || rawId,
+          created_at: node.createdAt,
+          note: node.note || '',
+          total_price: node.totalPriceSet?.shopMoney?.amount || '0',
+          subtotal_price: node.subtotalPriceSet?.shopMoney?.amount || '0',
+          total_shipping_price: node.totalShippingPriceSet?.shopMoney?.amount || '0',
+          customer: node.customer
+            ? {
+                first_name: node.customer.firstName || '',
+                last_name: node.customer.lastName || '',
+                email: node.customer.email || '',
+                phone: node.customer.phone || '',
+              }
+            : null,
+          shipping_address: node.shippingAddress || null,
+          billing_address: node.billingAddress || null,
+          line_items: lineItems,
+        };
+      });
     }
   } catch (gqlErr) {
     console.warn('GraphQL fetch orders error, falling back to REST:', gqlErr);
   }
 
   // 2. Fallback to REST API
-  const url = `https://${cleanDomain}/admin/api/2024-01/orders.json?status=any&limit=50`;
+  const url = `https://${cleanDomain}/admin/api/2024-01/orders.json?status=any&limit=250`;
   const res = await fetch(url, {
     headers: {
       'X-Shopify-Access-Token': accessToken.trim(),

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
 import { getD1Database, d1Store } from '@/lib/d1';
-import { parseShopifyOrderPayload, verifyShopifyWebhook, normalizeShopifyDomain } from '@/lib/shopify';
+import { parseShopifyOrderPayload, verifyShopifyWebhook, normalizeShopifyDomain, enrichOrderWithShopifyImages } from '@/lib/shopify';
 
 export async function POST(req: NextRequest) {
   try {
@@ -238,14 +238,30 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle Order Creation / Ingestion
-    const parsedOrder = parseShopifyOrderPayload(payload, workspaceId);
+    let parsedOrder = parseShopifyOrderPayload(payload, workspaceId);
+
+    // Auto-enrich product photos and gallery from Shopify GraphQL
+    const storeDomain = matchedWorkspace?.settings?.shopify?.shopDomain || detectedShop || '';
+    const adminToken = matchedWorkspace?.settings?.shopify?.adminAccessToken || '';
+    if (storeDomain && adminToken) {
+      try {
+        parsedOrder = await enrichOrderWithShopifyImages(parsedOrder, storeDomain, adminToken);
+      } catch (e) {
+        console.warn('Auto-enrich webhook order images error:', e);
+      }
+    }
 
     if (existingOrder) {
-      const updated = db.updateOrder(workspaceId, existingOrder.id, {
+      const updateData: any = {
         subtotal: parsedOrder.subtotal,
         total: parsedOrder.total,
         notesFromCustomer: parsedOrder.notesFromCustomer,
-      }, 'Shopify Webhook');
+      };
+      if (parsedOrder.items?.[0]?.imageUrl && !existingOrder.items?.[0]?.imageUrl) {
+        updateData.items = parsedOrder.items;
+      }
+
+      const updated = db.updateOrder(workspaceId, existingOrder.id, updateData, 'Shopify Webhook');
       if (d1 && updated) await d1Store.saveOrder(d1, { ...updated, userId: workspaceId });
 
       const logEntry = {
@@ -269,6 +285,7 @@ export async function POST(req: NextRequest) {
     if (d1) {
       await d1Store.saveOrder(d1, { ...created, userId: workspaceId });
     }
+
 
     const logEntry = {
       id: `wh-${Date.now()}`,

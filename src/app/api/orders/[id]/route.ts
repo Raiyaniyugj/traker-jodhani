@@ -3,6 +3,8 @@ import { db } from '@/lib/store';
 import { getD1Database, d1Store } from '@/lib/d1';
 import { getSessionUser } from '@/lib/auth';
 import { Order } from '@/lib/types';
+import { enrichOrderWithShopifyImages } from '@/lib/shopify';
+
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -44,7 +46,38 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
+    // Auto-enrich item product photo if missing
+    const hasMissingImage = !order.items?.[0]?.imageUrl;
+    if (hasMissingImage && (order.shopifyOrderId || order.source === 'shopify')) {
+      const workspaceId = session?.ownerId || session?.userId || order.userId;
+      let settings = workspaceId ? db.getSettings(workspaceId) : null;
+      if (d1 && workspaceId) {
+        const d1Settings = await d1Store.getSettings(d1, workspaceId);
+        if (d1Settings) settings = d1Settings;
+      }
+      const shopDomain = settings?.shopify?.shopDomain || '';
+      const adminAccessToken = settings?.shopify?.adminAccessToken || '';
+      if (shopDomain && adminAccessToken) {
+        try {
+          const enriched = await enrichOrderWithShopifyImages(order, shopDomain, adminAccessToken);
+          if (enriched.items?.[0]?.imageUrl) {
+            order.items = enriched.items;
+            if (d1 && workspaceId) await d1Store.saveOrder(d1, { ...order, userId: workspaceId });
+            if (workspaceId) {
+              db.updateOrder(workspaceId, order.id, {
+                items: order.items,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('Auto-enrich order GET error:', e);
+        }
+      }
+    }
+
+
     return NextResponse.json({ order, stages });
+
   } catch (error: any) {
     console.error('Order [id] GET error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

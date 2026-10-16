@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { Order, PipelineStage } from '@/lib/types';
-import { ChevronRight, ExternalLink, ArrowRight } from 'lucide-react';
+import { ChevronRight, ExternalLink, ArrowRight, Diamond } from 'lucide-react';
+
 
 interface TableViewProps {
   orders: Order[];
@@ -75,36 +76,52 @@ export default function TableView({ orders, stages, onOrderStageChange }: TableV
                 <tr key={order.id} className="hover:bg-neutral-50/70 transition">
                   {/* Order & Piece */}
                   <td className="py-4 px-6">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/orders/${order.id}`}
-                        className="font-serif font-semibold text-neutral-900 hover:text-black hover:underline"
-                      >
-                        {order.orderNumber}
-                      </Link>
-                      {(order.source === 'shopify' || Boolean(order.shopifyOrderId)) && (
-                        <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Shopify
-                        </span>
+                    <div className="flex items-center gap-3">
+                      {primaryItem?.imageUrl || order.gallery?.[0]?.url ? (
+                        <img
+                          src={primaryItem?.imageUrl || order.gallery?.[0]?.url}
+                          alt={primaryItem?.title || 'Jewelry'}
+                          className="w-11 h-11 rounded-lg object-cover border border-neutral-200 shrink-0 shadow-2xs"
+                        />
+                      ) : (
+                        <div className="w-11 h-11 rounded-lg bg-neutral-100 border border-neutral-200 flex items-center justify-center shrink-0 text-neutral-400">
+                          <Diamond className="w-4 h-4" />
+                        </div>
                       )}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Link
+                            href={`/orders/${order.id}`}
+                            className="font-serif font-semibold text-neutral-900 hover:text-black hover:underline"
+                          >
+                            {order.orderNumber}
+                          </Link>
+                          {(order.source === 'shopify' || Boolean(order.shopifyOrderId)) && (
+                            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              Shopify
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-neutral-700 font-medium mt-0.5 max-w-[220px] truncate">
+                          {primaryItem?.title || 'Fine Jewelry'}
+                        </p>
+                        {primaryItem && (primaryItem.metalType || primaryItem.diamondSize) && (
+                          <p className="text-[11px] text-neutral-400 mt-0.5">
+                            {[
+                              primaryItem.metalType,
+                              primaryItem.metalColor,
+                              primaryItem.diamondSize ? `${primaryItem.diamondSize}ct` : '',
+                              primaryItem.diamondShape,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-xs text-neutral-700 font-medium mt-1">
-                      {primaryItem?.title || 'Fine Jewelry'}
-                    </p>
-                    {primaryItem && (primaryItem.metalType || primaryItem.diamondSize) && (
-                      <p className="text-[11px] text-neutral-400 mt-0.5">
-                        {[
-                          primaryItem.metalType,
-                          primaryItem.metalColor,
-                          primaryItem.diamondSize ? `${primaryItem.diamondSize}ct` : '',
-                          primaryItem.diamondShape,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </p>
-                    )}
                   </td>
+
 
                   {/* Customer */}
                   <td className="py-4 px-6">

@@ -19,7 +19,11 @@ import {
   Upload,
   Truck,
   Diamond,
+  RefreshCw,
+  X,
+  ZoomIn,
 } from 'lucide-react';
+
 import { Order, PipelineStage } from '@/lib/types';
 
 export default function OrderDetailsPage() {
@@ -36,6 +40,27 @@ export default function OrderDetailsPage() {
   const [trackingCarrier, setTrackingCarrier] = useState('FedEx Priority');
   const [copiedLink, setCopiedLink] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [previewImage, setPreviewImage] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPreviewImage(null);
+      }
+    };
+    if (previewImage) {
+      window.addEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [previewImage]);
+
+
 
   useEffect(() => {
     if (orderId) {
@@ -306,18 +331,36 @@ export default function OrderDetailsPage() {
           <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-2xs">
             <div className="flex items-start justify-between pb-4 border-b border-neutral-100">
               <div className="flex items-center gap-4">
-                {firstItem?.imageUrl || order.gallery[0]?.url ? (
-                  <img
-                    src={firstItem?.imageUrl || order.gallery[0]?.url}
-                    alt={firstItem?.title || 'Jewelry Piece'}
-                    className="w-16 h-16 rounded-xl object-cover border border-neutral-200 shadow-2xs"
-                  />
+                {firstItem?.imageUrl ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPreviewImage({
+                        url: firstItem.imageUrl || '',
+                        title: firstItem.title || 'Product Photo',
+                        subtitle: `${firstItem.metalType || ''} ${firstItem.metalColor || ''}`.trim(),
+                      })
+                    }
+
+                    className="relative group w-16 h-16 rounded-xl overflow-hidden border border-neutral-200 shadow-2xs shrink-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-black"
+                    title="Click to view full photo"
+                  >
+                    <img
+                      src={firstItem.imageUrl}
+                      alt={firstItem?.title || 'Jewelry Piece'}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                      <ZoomIn className="w-5 h-5 drop-shadow" />
+                    </div>
+                  </button>
                 ) : (
-                  <div className="w-14 h-14 bg-neutral-100 rounded-lg flex items-center justify-center text-neutral-400 border border-neutral-200">
+                  <div className="w-16 h-16 bg-neutral-100 rounded-xl flex items-center justify-center text-neutral-400 border border-neutral-200 shrink-0">
                     <Diamond className="w-6 h-6 text-neutral-400" />
                   </div>
                 )}
                 <div>
+
                   <span className="inline-block text-[11px] font-medium px-2 py-0.5 rounded bg-blue-50 text-blue-700 mb-1">
                     {stages.find((s) => s.id === order.currentStageId)?.name || 'Production'}
                   </span>
@@ -461,8 +504,8 @@ export default function OrderDetailsPage() {
               <div>
                 {order.gallery.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-xs text-neutral-400 mb-3">No images uploaded yet.</p>
-                    <div className="flex items-center justify-center gap-2">
+                    <p className="text-xs text-neutral-400 mb-3">No workshop production images uploaded yet.</p>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
                       <button
                         onClick={() => handleAddSampleMedia('cad')}
                         className="px-3 py-1.5 text-xs border border-neutral-300 rounded-md hover:bg-neutral-50 font-medium"
@@ -480,12 +523,22 @@ export default function OrderDetailsPage() {
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {order.gallery.map((img) => (
-                      <div key={img.id} className="border border-neutral-200 rounded-lg p-2 bg-neutral-50">
-                        <img
-                          src={img.url}
-                          alt={img.title}
-                          className="w-full h-32 object-cover rounded-md mb-2"
-                        />
+                      <div
+                        key={img.id}
+                        onClick={() => setPreviewImage({ url: img.url, title: img.title, subtitle: img.type })}
+                        className="border border-neutral-200 rounded-lg p-2 bg-neutral-50 cursor-pointer group hover:border-black transition"
+                        title="Click to view full image"
+                      >
+                        <div className="relative w-full h-32 rounded-md overflow-hidden mb-2 bg-neutral-100">
+                          <img
+                            src={img.url}
+                            alt={img.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                          />
+                          <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
+                            <ZoomIn className="w-5 h-5 drop-shadow" />
+                          </div>
+                        </div>
                         <p className="text-xs font-medium truncate">{img.title}</p>
                         <span className="text-[10px] text-neutral-400 uppercase">{img.type}</span>
                       </div>
@@ -494,6 +547,7 @@ export default function OrderDetailsPage() {
                 )}
               </div>
             )}
+
 
             {activeTab === 'comments' && (
               <div className="space-y-4">
@@ -692,6 +746,70 @@ export default function OrderDetailsPage() {
           </div>
         </main>
       </div>
+
+      {/* High-Resolution Full Image Modal */}
+      {previewImage && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewImage(null)}
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-8 animate-in fade-in duration-200"
+        >
+          {/* Top Bar */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-4xl flex items-center justify-between text-white mb-3 px-2"
+          >
+            <div>
+              <h3 className="font-semibold text-base sm:text-lg text-white">
+                {previewImage.title}
+              </h3>
+              {previewImage.subtitle && (
+                <p className="text-xs text-neutral-300 mt-0.5">{previewImage.subtitle}</p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <a
+                href={previewImage.url}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium text-white flex items-center gap-1.5 transition"
+                title="Open original high-res image in new tab"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Original
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition focus:outline-none cursor-pointer"
+                title="Close (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Centered High-Res Image Card */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-4xl max-h-[80vh] flex items-center justify-center bg-black/40 rounded-2xl overflow-hidden border border-white/10 shadow-2xl p-2"
+          >
+            <img
+              src={previewImage.url}
+              alt={previewImage.title}
+              className="max-w-full max-h-[76vh] object-contain rounded-xl select-none"
+            />
+          </div>
+
+          <p className="text-neutral-400 text-xs mt-3 flex items-center gap-1">
+            Click anywhere outside or press <kbd className="px-1.5 py-0.5 bg-white/10 text-white rounded text-[10px] font-mono">Esc</kbd> to close
+          </p>
+        </div>
+      )}
     </div>
   );
 }
+

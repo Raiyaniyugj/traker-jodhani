@@ -139,13 +139,23 @@ export default function KanbanBoard({
                         </p>
 
                         {firstItem && (
-                          <div className="mt-2.5 text-xs text-neutral-700 bg-neutral-50 p-2 rounded border border-neutral-100">
-                            <p className="font-medium truncate">{firstItem.title}</p>
-                            <p className="text-[11px] text-neutral-500 mt-0.5">
-                              {firstItem.metalType} {firstItem.metalColor} · {firstItem.diamondSize}ct
-                            </p>
+                          <div className="mt-2.5 text-xs text-neutral-700 bg-neutral-50 p-2 rounded border border-neutral-100 flex items-center gap-2.5">
+                            {firstItem.imageUrl || order.gallery?.[0]?.url ? (
+                              <img
+                                src={firstItem.imageUrl || order.gallery?.[0]?.url}
+                                alt={firstItem.title}
+                                className="w-10 h-10 rounded-md object-cover border border-neutral-200 shrink-0 shadow-2xs"
+                              />
+                            ) : null}
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium truncate">{firstItem.title}</p>
+                              <p className="text-[11px] text-neutral-500 mt-0.5 truncate">
+                                {firstItem.metalType} {firstItem.metalColor} · {firstItem.diamondSize}ct
+                              </p>
+                            </div>
                           </div>
                         )}
+
 
                         <div className="mt-3 flex items-center justify-between text-xs pt-2.5 border-t border-neutral-100">
                           <span className="font-semibold text-neutral-900 font-mono">

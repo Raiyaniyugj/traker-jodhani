@@ -147,35 +147,9 @@ export function parseShopifyOrderPayload(payload: any, userId?: string): Order {
     };
   });
 
-  // Automatically populate Gallery with high-res product photos from Shopify
+  // Gallery is strictly reserved for workshop artisan production uploads (CAD renders, casting photos, QC)
   const galleryItems: OrderMedia[] = [];
-  lineItems.forEach((li, idx) => {
-    if (li.imageUrl) {
-      galleryItems.push({
-        id: `img-shopify-${idx}-main-${Date.now()}`,
-        title: `${li.title} (Shopify Product Photo)`,
-        url: li.imageUrl,
-        type: 'general',
-        uploadedAt: payload.created_at || new Date().toISOString(),
-      });
-    }
-  });
 
-  (payload.line_items || []).forEach((li: any, idx: number) => {
-    if (Array.isArray(li.product_images)) {
-      li.product_images.forEach((imgUrl: string, pIdx: number) => {
-        if (imgUrl && !galleryItems.some((g) => g.url === imgUrl)) {
-          galleryItems.push({
-            id: `img-shopify-${idx}-${pIdx}-${Date.now()}`,
-            title: `${li.title || 'Jewelry'} (Angle ${pIdx + 1})`,
-            url: imgUrl,
-            type: 'general',
-            uploadedAt: payload.created_at || new Date().toISOString(),
-          });
-        }
-      });
-    }
-  });
 
   const subtotal = parseFloat(payload.subtotal_price || payload.total_line_items_price || '0');
   const shippingFee = parseFloat(
@@ -596,3 +570,175 @@ export function generateMockShopifyOrder() {
     ],
   };
 }
+
+/**
+ * Automatically enriches an Order with high-res product photos from Shopify GraphQL.
+ * Handles both existing products and custom/deleted copytest products by keyword matching in the store catalog.
+ */
+export async function enrichOrderWithShopifyImages(
+  order: Order,
+  shopDomain: string,
+  accessToken: string
+): Promise<Order> {
+  const cleanDomain = normalizeShopifyDomain(shopDomain);
+  if (!cleanDomain || !accessToken) return order;
+
+  // If order already has item imageUrl, return as is
+  if (order.items?.[0]?.imageUrl) {
+    return order;
+  }
+
+
+  try {
+    let imagesFound: string[] = [];
+
+    // 1. Try querying the Shopify Order directly via GraphQL if shopifyOrderId exists
+    if (order.shopifyOrderId) {
+      const gqlQuery = `{
+        order(id: "gid://shopify/Order/${order.shopifyOrderId}") {
+          lineItems(first: 10) {
+            nodes {
+              id
+              title
+              image { url }
+              product {
+                featuredImage { url }
+                images(first: 8) { nodes { url } }
+              }
+            }
+          }
+        }
+      }`;
+
+      const res = await fetch(`https://${cleanDomain}/admin/api/2024-01/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'X-Shopify-Access-Token': accessToken.trim(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: gqlQuery }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const lineNodes = data?.data?.order?.lineItems?.nodes || [];
+        for (const li of lineNodes) {
+          if (li.image?.url && !imagesFound.includes(li.image.url)) {
+            imagesFound.push(li.image.url);
+          }
+          if (li.product?.featuredImage?.url && !imagesFound.includes(li.product.featuredImage.url)) {
+            imagesFound.push(li.product.featuredImage.url);
+          }
+          if (Array.isArray(li.product?.images?.nodes)) {
+            li.product.images.nodes.forEach((img: any) => {
+              if (img?.url && !imagesFound.includes(img.url)) {
+                imagesFound.push(img.url);
+              }
+            });
+          }
+        }
+      }
+    }
+
+    // 2. Fallback: If no images found from the direct order (e.g. custom product, deleted product, copytest),
+    // search the Shopify catalog by keywords extracted from line items
+    if (imagesFound.length === 0) {
+      const searchTerms: string[] = [];
+      (order.items || []).forEach((item) => {
+        // Strip "(copy)", "(copytest)", numbers, punctuation
+        const cleanTitle = item.title
+          .replace(/\(copy[^)]*\)/gi, '')
+          .replace(/[^a-zA-Z0-9\s]/g, ' ')
+          .trim();
+        const words = cleanTitle.split(/\s+/).filter((w) => w.length > 3);
+        if (words.length > 0) searchTerms.push(words.slice(0, 3).join(' '));
+      });
+
+      const primaryQuery = searchTerms[0] || order.items?.[0]?.productType || 'Jewelry';
+      const searchGql = `{
+        products(first: 3, query: "${primaryQuery.replace(/"/g, '')}") {
+          nodes {
+            featuredImage { url }
+            images(first: 6) { nodes { url } }
+          }
+        }
+      }`;
+
+      const searchRes = await fetch(`https://${cleanDomain}/admin/api/2024-01/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'X-Shopify-Access-Token': accessToken.trim(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: searchGql }),
+      });
+
+      if (searchRes.ok) {
+        const searchData = await searchRes.json();
+        const prodNodes = searchData?.data?.products?.nodes || [];
+        for (const prod of prodNodes) {
+          if (prod.featuredImage?.url && !imagesFound.includes(prod.featuredImage.url)) {
+            imagesFound.push(prod.featuredImage.url);
+          }
+          if (Array.isArray(prod.images?.nodes)) {
+            prod.images.nodes.forEach((img: any) => {
+              if (img?.url && !imagesFound.includes(img.url)) {
+                imagesFound.push(img.url);
+              }
+            });
+          }
+          if (imagesFound.length >= 6) break;
+        }
+      }
+    }
+
+    // 3. Fallback 2: If still no images found, get any high-res product photos from the store catalog
+    if (imagesFound.length === 0) {
+      const anyGql = `{
+        products(first: 1) {
+          nodes {
+            featuredImage { url }
+            images(first: 6) { nodes { url } }
+          }
+        }
+      }`;
+      const anyRes = await fetch(`https://${cleanDomain}/admin/api/2024-01/graphql.json`, {
+        method: 'POST',
+        headers: {
+          'X-Shopify-Access-Token': accessToken.trim(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: anyGql }),
+      });
+      if (anyRes.ok) {
+        const anyData = await anyRes.json();
+        const firstProd = anyData?.data?.products?.nodes?.[0];
+        if (firstProd) {
+          if (firstProd.featuredImage?.url) imagesFound.push(firstProd.featuredImage.url);
+          (firstProd.images?.nodes || []).forEach((img: any) => {
+            if (img?.url && !imagesFound.includes(img.url)) imagesFound.push(img.url);
+          });
+        }
+      }
+    }
+
+    // Only set single primary product photo on items[0].imageUrl. Do NOT populate order.gallery
+    if (imagesFound.length > 0) {
+      const updatedItems = (order.items || []).map((item, idx) => ({
+        ...item,
+        imageUrl: item.imageUrl || (idx === 0 ? imagesFound[0] : item.imageUrl),
+      }));
+
+      return {
+        ...order,
+        items: updatedItems,
+      };
+    }
+
+  } catch (err) {
+    console.warn('Error enriching order with Shopify images:', err);
+  }
+
+  return order;
+}
+

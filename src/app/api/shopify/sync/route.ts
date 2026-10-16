@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
 import { getD1Database, d1Store } from '@/lib/d1';
-import { fetchShopifyOrders, parseShopifyOrderPayload, normalizeShopifyDomain } from '@/lib/shopify';
+import { fetchShopifyOrders, parseShopifyOrderPayload, normalizeShopifyDomain, enrichOrderWithShopifyImages } from '@/lib/shopify';
+
 import { getSessionUser } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -82,14 +83,31 @@ export async function POST(req: NextRequest) {
         (o) => o.shopifyOrderId === String(rawOrder.id) || o.orderNumber === rawOrder.name
       );
       if (!duplicate) {
-        const parsed = parseShopifyOrderPayload(rawOrder, workspaceId);
+        let parsed = parseShopifyOrderPayload(rawOrder, workspaceId);
+        parsed = await enrichOrderWithShopifyImages(parsed, cleanDomain, adminAccessToken);
         const created = db.createOrder(workspaceId, parsed);
         if (d1) {
           await d1Store.saveOrder(d1, { ...created, userId: workspaceId });
         }
         importedCount++;
+      } else {
+        // If existing order was missing image, enrich and update it
+        const missingImage = !duplicate.items?.[0]?.imageUrl;
+        if (missingImage) {
+          let enriched = parseShopifyOrderPayload(rawOrder, workspaceId);
+          enriched = await enrichOrderWithShopifyImages(enriched, cleanDomain, adminAccessToken);
+          if (enriched.items?.[0]?.imageUrl) {
+            const updated = db.updateOrder(workspaceId, duplicate.id, {
+              items: enriched.items,
+            });
+            if (d1 && updated) await d1Store.saveOrder(d1, { ...updated, userId: workspaceId });
+            importedCount++;
+          }
+        }
+
       }
     }
+
 
     // Update last sync time and clear error
     const successMsg = importedCount > 0

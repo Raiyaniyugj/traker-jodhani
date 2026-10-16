@@ -21,9 +21,34 @@ export async function hashPassword(password: string): Promise<string> {
 
 export function getSessionUser(req: NextRequest): SessionUser | null {
   try {
-    const cookie = req.cookies.get(SESSION_COOKIE_NAME)?.value;
-    if (!cookie) return null;
-    const parsed = JSON.parse(cookie);
+    // 1. Check custom header or Bearer authorization (for Shopify iframe & third-party cookie restrictions)
+    const customHeader = req.headers.get('x-trackerz-session');
+    const authHeader = req.headers.get('authorization');
+    let rawData = customHeader;
+
+    if (!rawData && authHeader && authHeader.startsWith('Bearer ')) {
+      rawData = authHeader.substring(7);
+    }
+
+    if (!rawData) {
+      rawData = req.cookies.get(SESSION_COOKIE_NAME)?.value || null;
+    }
+
+    if (!rawData) return null;
+
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(rawData);
+    } catch {
+      try {
+        parsed = JSON.parse(decodeURIComponent(rawData));
+      } catch {
+        try {
+          parsed = JSON.parse(Buffer.from(rawData, 'base64').toString('utf8'));
+        } catch {}
+      }
+    }
+
     if (!parsed || !parsed.userId) return null;
     return {
       userId: parsed.userId,
@@ -52,11 +77,12 @@ export function setSessionCookie(
 
   const maxAge = rememberMe ? 60 * 60 * 24 * 365 : 60 * 60 * 24 * 30; // 1 year if rememberMe, otherwise 30 days
 
+  // Support Shopify Admin iframe by setting SameSite: 'none' and Secure: true
   response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(sessionData), {
     path: '/',
     httpOnly: false, // Accessible to client-side scripts if needed
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: true,
+    sameSite: 'none',
     maxAge,
   });
 }

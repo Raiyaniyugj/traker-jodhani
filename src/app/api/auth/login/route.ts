@@ -39,8 +39,18 @@ export async function POST(req: NextRequest) {
 
     const ownerId = user.ownerId || user.id;
 
+    const sessionUser = {
+      userId: user.id,
+      ownerId,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    };
+    const token = Buffer.from(JSON.stringify(sessionUser)).toString('base64');
+
     const response = NextResponse.json({
       success: true,
+      token,
       user: {
         id: user.id,
         ownerId,

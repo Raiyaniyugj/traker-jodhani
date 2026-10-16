@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import IframeAuthSync from '@/components/IframeAuthSync';
 
 export const metadata: Metadata = {
   title: 'Trackerz — Production Tracker',
@@ -17,6 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-neutral-50 text-neutral-900">
+        <IframeAuthSync />
         {children}
       </body>
     </html>

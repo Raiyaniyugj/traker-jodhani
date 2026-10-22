@@ -32,8 +32,22 @@ export default function DashboardPage() {
   const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
   const [shopifyStatus, setShopifyStatus] = useState<ShopifyConnectionStatus | null>(null);
   const [metrics, setMetrics] = useState({ totalRevenue: 0, totalProfit: 0 });
-  const [hideValues, setHideValues] = useState(false);
-  const [hideCards, setHideCards] = useState(false);
+  const [hideValues, setHideValues] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('trackerz_hide_revenue_figures') === 'true';
+      } catch {}
+    }
+    return false;
+  });
+  const [hideCards, setHideCards] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return localStorage.getItem('trackerz_hide_stat_cards') === 'true';
+      } catch {}
+    }
+    return false;
+  });
 
   const toggleHideValues = () => {
     setHideValues((prev) => {
@@ -61,8 +75,18 @@ export default function DashboardPage() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('trackerz_view_mode') as 'kanban' | 'table' | null;
+      const saved = localStorage.getItem('trackerz_view_mode') as 'kanban' | 'table' | 'swimlane' | null;
       if (saved) setView(saved);
+
+      const savedHideValues = localStorage.getItem('trackerz_hide_revenue_figures');
+      if (savedHideValues !== null) {
+        setHideValues(savedHideValues === 'true');
+      }
+
+      const savedHideCards = localStorage.getItem('trackerz_hide_stat_cards');
+      if (savedHideCards !== null) {
+        setHideCards(savedHideCards === 'true');
+      }
     } catch {}
     loadOrders();
     loadShopifyStatus();
@@ -267,7 +291,8 @@ export default function DashboardPage() {
           />
 
           {/* Stat Cards with Hide / Privacy Options */}
-          {!hideCards ? (
+          <div suppressHydrationWarning>
+            {!hideCards ? (
             <div className="flex flex-wrap items-center gap-4">
               {/* Total Revenue Card */}
               <div className="group bg-white border border-neutral-200 rounded-xl px-5 py-4 min-w-[220px] shadow-2xs relative">
@@ -353,6 +378,7 @@ export default function DashboardPage() {
               </button>
             </div>
           )}
+          </div>
 
           {/* View Toggles matching original screenshot */}
           <div className="flex items-center justify-between pt-2">

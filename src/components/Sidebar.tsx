@@ -36,7 +36,7 @@ export default function Sidebar() {
               <path d="M8 3L12 9L16 3" stroke="white" strokeWidth="1" />
               <path d="M4 9L12 21L20 9" stroke="white" strokeWidth="1" />
             </svg>
-            Trackerz
+            Check List
           </Link>
         </div>
 
@@ -66,7 +66,7 @@ export default function Sidebar() {
 
       {/* Production Workspace Info */}
       <div className="pt-4 border-t border-neutral-100 px-3 space-y-1 text-[11px] text-neutral-400">
-        <p className="font-medium text-neutral-600">Trackerz Jewelry Atelier</p>
+        <p className="font-medium text-neutral-600">Check List Jewelry Atelier</p>
         <p>Production Ready · Cloudflare D1</p>
       </div>
     </aside>

@@ -60,7 +60,7 @@ export default function HomePage() {
               <path d="M8 3L12 9L16 3" stroke="white" strokeWidth="1" />
               <path d="M4 9L12 21L20 9" stroke="white" strokeWidth="1" />
             </svg>
-            Trackerz
+            Check List
           </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-sm text-neutral-600 font-medium">
@@ -429,7 +429,7 @@ export default function HomePage() {
               <path d="M8 3L12 9L16 3" stroke="white" strokeWidth="1" />
               <path d="M4 9L12 21L20 9" stroke="white" strokeWidth="1" />
             </svg>
-            Trackerz
+            Check List
           </div>
 
           <div className="flex flex-wrap items-center gap-6 text-xs text-neutral-500">
@@ -442,7 +442,7 @@ export default function HomePage() {
           </div>
 
           <p className="text-xs text-neutral-400">
-            © {new Date().getFullYear()} Trackerz · Deployed on Cloudflare Workers
+            © {new Date().getFullYear()} Check List · Deployed on Cloudflare Workers
           </p>
         </div>
       </footer>

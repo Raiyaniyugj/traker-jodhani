@@ -92,7 +92,7 @@ export default function LoginPage() {
               <path d="M8 3L12 9L16 3" stroke="white" strokeWidth="1" />
               <path d="M4 9L12 21L20 9" stroke="white" strokeWidth="1" />
             </svg>
-            Trackerz
+            Check List
           </Link>
           <p className="text-sm text-neutral-500 mt-1">Sign in to your production workspace</p>
         </div>

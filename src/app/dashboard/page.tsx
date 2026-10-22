@@ -18,6 +18,8 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Order, PipelineStage, WorkspaceSettings, ShopifyConnectionStatus } from '@/lib/types';
@@ -30,6 +32,25 @@ export default function DashboardPage() {
   const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
   const [shopifyStatus, setShopifyStatus] = useState<ShopifyConnectionStatus | null>(null);
   const [metrics, setMetrics] = useState({ totalRevenue: 0, totalProfit: 0 });
+  const [hideValues, setHideValues] = useState(false);
+  const [hideCards, setHideCards] = useState(false);
+
+  const toggleHideValues = () => {
+    setHideValues((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('trackerz_hide_revenue_figures', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const toggleHideCards = (hide: boolean) => {
+    setHideCards(hide);
+    try {
+      localStorage.setItem('trackerz_hide_stat_cards', String(hide));
+    } catch {}
+  };
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -245,27 +266,91 @@ export default function DashboardPage() {
             onRefreshStatus={loadShopifyStatus}
           />
 
-          {/* Stat Cards */}
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="bg-white border border-neutral-200 rounded-xl px-5 py-4 min-w-[220px] shadow-2xs">
-              <p className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">
-                TOTAL REVENUE
-              </p>
-              <p className="font-sans font-bold text-2xl text-neutral-900 mt-1 tracking-tight whitespace-nowrap">
-                ${metrics.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
+          {/* Stat Cards with Hide / Privacy Options */}
+          {!hideCards ? (
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Total Revenue Card */}
+              <div className="group bg-white border border-neutral-200 rounded-xl px-5 py-4 min-w-[220px] shadow-2xs relative">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">
+                    TOTAL REVENUE
+                  </p>
+                  <button
+                    onClick={toggleHideValues}
+                    title={hideValues ? 'Show revenue figures' : 'Hide revenue figures'}
+                    className="text-neutral-400 hover:text-neutral-800 transition p-0.5 rounded cursor-pointer"
+                  >
+                    {hideValues ? <EyeOff className="w-3.5 h-3.5 text-neutral-600" /> : <Eye className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />}
+                  </button>
+                </div>
+                <p className="font-sans font-bold text-2xl text-neutral-900 mt-1 tracking-tight whitespace-nowrap">
+                  {hideValues ? (
+                    <span className="text-neutral-400 font-mono tracking-widest text-xl select-none">
+                      $••••••••
+                    </span>
+                  ) : (
+                    `${metrics.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  )}
+                </p>
+              </div>
 
-            <div className="bg-white border border-neutral-200 rounded-xl px-5 py-4 min-w-[220px] shadow-2xs">
-              <p className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">
-                TOTAL PROFIT
-              </p>
-              <p className="font-sans font-bold text-2xl text-neutral-900 mt-1 tracking-tight whitespace-nowrap">
-                ${metrics.totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-            </div>
-          </div>
+              {/* Total Profit Card */}
+              <div className="group bg-white border border-neutral-200 rounded-xl px-5 py-4 min-w-[220px] shadow-2xs relative">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">
+                    TOTAL PROFIT
+                  </p>
+                  <button
+                    onClick={toggleHideValues}
+                    title={hideValues ? 'Show profit figures' : 'Hide profit figures'}
+                    className="text-neutral-400 hover:text-neutral-800 transition p-0.5 rounded cursor-pointer"
+                  >
+                    {hideValues ? <EyeOff className="w-3.5 h-3.5 text-neutral-600" /> : <Eye className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />}
+                  </button>
+                </div>
+                <p className="font-sans font-bold text-2xl text-neutral-900 mt-1 tracking-tight whitespace-nowrap">
+                  {hideValues ? (
+                    <span className="text-neutral-400 font-mono tracking-widest text-xl select-none">
+                      $••••••••
+                    </span>
+                  ) : (
+                    `${metrics.totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  )}
+                </p>
+              </div>
 
+              {/* Action Buttons: Hide Values / Hide Cards */}
+              <div className="flex items-center gap-2 self-center">
+                <button
+                  onClick={toggleHideValues}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-neutral-200 bg-white text-xs font-medium text-neutral-700 hover:text-black hover:bg-neutral-50 shadow-2xs transition cursor-pointer"
+                  title={hideValues ? 'Show revenue & profit numbers' : 'Hide sensitive revenue & profit numbers'}
+                >
+                  {hideValues ? <Eye className="w-3.5 h-3.5 text-neutral-600" /> : <EyeOff className="w-3.5 h-3.5 text-neutral-500" />}
+                  <span>{hideValues ? 'Show Figures' : 'Hide Figures'}</span>
+                </button>
+
+                <button
+                  onClick={() => toggleHideCards(true)}
+                  className="inline-flex items-center gap-1 px-2.5 py-2 rounded-lg text-xs font-medium text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
+                  title="Hide stat cards"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Hide Cards</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center pt-1">
+              <button
+                onClick={() => toggleHideCards(false)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-dashed border-neutral-300 bg-white text-xs font-medium text-neutral-600 hover:text-black hover:border-neutral-400 shadow-2xs transition cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5 text-neutral-500" />
+                <span>Show Stats (Revenue & Profit)</span>
+              </button>
+            </div>
+          )}
 
           {/* View Toggles matching original screenshot */}
           <div className="flex items-center justify-between pt-2">

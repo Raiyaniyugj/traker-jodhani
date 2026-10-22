@@ -23,6 +23,7 @@ import {
   Search,
   PieChart,
   BarChart3,
+  LineChart,
   Award,
   AlertCircle,
 } from 'lucide-react';
@@ -44,6 +45,7 @@ export default function AnalyticsPage() {
 
   // Chart view toggle: 'revenue' | 'orders'
   const [chartMetric, setChartMetric] = useState<'revenue' | 'orders'>('revenue');
+  const [chartType, setChartType] = useState<'line' | 'bar'>('line');
   const [hoveredDay, setHoveredDay] = useState<any | null>(null);
 
   // Table search
@@ -551,8 +553,14 @@ export default function AnalyticsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-neutral-100">
               <div>
                 <h3 className="font-semibold text-neutral-900 flex items-center gap-2">
-                  <BarChart3 className="w-4 h-4 text-neutral-700" />
-                  <span>Selling Performance Graph (High vs Low Velocity)</span>
+                  {chartType === 'line' ? (
+                    <LineChart className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <BarChart3 className="w-4 h-4 text-neutral-700" />
+                  )}
+                  <span>
+                    Selling Performance {chartType === 'line' ? 'Line Graph' : 'Bar Chart'} (High vs Low Velocity)
+                  </span>
                 </h3>
                 <p className="text-xs text-neutral-500 mt-0.5">
                   Daily visual trend showing peak high selling days and slower volume days against daily average ({currencySymbol}
@@ -560,24 +568,53 @@ export default function AnalyticsPage() {
                 </p>
               </div>
 
-              {/* Metric Toggle */}
-              <div className="flex items-center bg-neutral-100 p-1 rounded-lg">
-                <button
-                  onClick={() => setChartMetric('revenue')}
-                  className={`text-xs px-3 py-1 rounded-md font-medium transition ${
-                    chartMetric === 'revenue' ? 'bg-white text-black shadow-2xs font-semibold' : 'text-neutral-600 hover:text-black'
-                  }`}
-                >
-                  Sales Revenue ({currencySymbol})
-                </button>
-                <button
-                  onClick={() => setChartMetric('orders')}
-                  className={`text-xs px-3 py-1 rounded-md font-medium transition ${
-                    chartMetric === 'orders' ? 'bg-white text-black shadow-2xs font-semibold' : 'text-neutral-600 hover:text-black'
-                  }`}
-                >
-                  Orders Volume (Count)
-                </button>
+              {/* Chart Controls: Graph Type & Metric Toggles */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Graph Type Switcher */}
+                <div className="flex items-center bg-neutral-100 p-1 rounded-lg border border-neutral-200/60">
+                  <button
+                    onClick={() => setChartType('line')}
+                    className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md font-medium transition ${
+                      chartType === 'line'
+                        ? 'bg-white text-emerald-700 shadow-2xs font-semibold'
+                        : 'text-neutral-600 hover:text-black'
+                    }`}
+                  >
+                    <LineChart className="w-3.5 h-3.5" />
+                    <span>Line Graph</span>
+                  </button>
+                  <button
+                    onClick={() => setChartType('bar')}
+                    className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md font-medium transition ${
+                      chartType === 'bar'
+                        ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
+                        : 'text-neutral-600 hover:text-black'
+                    }`}
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    <span>Bar Chart</span>
+                  </button>
+                </div>
+
+                {/* Metric Toggle */}
+                <div className="flex items-center bg-neutral-100 p-1 rounded-lg border border-neutral-200/60">
+                  <button
+                    onClick={() => setChartMetric('revenue')}
+                    className={`text-xs px-3 py-1 rounded-md font-medium transition ${
+                      chartMetric === 'revenue' ? 'bg-white text-black shadow-2xs font-semibold' : 'text-neutral-600 hover:text-black'
+                    }`}
+                  >
+                    Sales Revenue ({currencySymbol})
+                  </button>
+                  <button
+                    onClick={() => setChartMetric('orders')}
+                    className={`text-xs px-3 py-1 rounded-md font-medium transition ${
+                      chartMetric === 'orders' ? 'bg-white text-black shadow-2xs font-semibold' : 'text-neutral-600 hover:text-black'
+                    }`}
+                  >
+                    Orders Volume (Count)
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -590,14 +627,33 @@ export default function AnalyticsPage() {
               <div className="relative pt-4">
                 {/* Visual Legend */}
                 <div className="flex flex-wrap items-center justify-end gap-4 text-[11px] mb-2 text-neutral-500">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-                    <span>High Selling Day (Above Average)</span>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-neutral-400 inline-block" />
-                    <span>Low / Average Selling Day</span>
-                  </span>
+                  {chartType === 'line' ? (
+                    <>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-4 h-1 rounded-full bg-emerald-500 inline-block" />
+                        <span>Performance Line</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
+                        <span>High Velocity Day</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-neutral-400 inline-block" />
+                        <span>Normal / Low Day</span>
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+                        <span>High Selling Day (Above Average)</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-neutral-400 inline-block" />
+                        <span>Low / Average Selling Day</span>
+                      </span>
+                    </>
+                  )}
                   <span className="flex items-center gap-1.5">
                     <span className="w-4 border-b-2 border-dashed border-amber-500 inline-block" />
                     <span>Daily Average Line</span>
@@ -613,10 +669,21 @@ export default function AnalyticsPage() {
                       preserveAspectRatio="none"
                     >
                       <defs>
-                        <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.28" />
+                        {/* Line chart area gradient */}
+                        <linearGradient id="lineAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
+                          <stop offset="60%" stopColor="#10b981" stopOpacity="0.08" />
                           <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
                         </linearGradient>
+
+                        {/* Line chart stroke gradient */}
+                        <linearGradient id="lineStrokeGradient" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#059669" />
+                          <stop offset="50%" stopColor="#10b981" />
+                          <stop offset="100%" stopColor="#047857" />
+                        </linearGradient>
+
+                        {/* Bar gradients */}
                         <linearGradient id="barGradientHigh" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#059669" />
                           <stop offset="100%" stopColor="#10b981" />
@@ -625,6 +692,11 @@ export default function AnalyticsPage() {
                           <stop offset="0%" stopColor="#71717a" />
                           <stop offset="100%" stopColor="#a1a1aa" />
                         </linearGradient>
+
+                        {/* Soft drop shadow */}
+                        <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
+                          <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="#059669" floodOpacity="0.28" />
+                        </filter>
                       </defs>
 
                       {/* Grid Lines */}
@@ -659,7 +731,7 @@ export default function AnalyticsPage() {
                         );
                       })}
 
-                      {/* Average Line */}
+                      {/* Average Reference Line */}
                       {(() => {
                         const avgVal =
                           chartMetric === 'revenue' ? dailyStats.avgDailyRevenue : dailyStats.avgDailyOrders;
@@ -692,87 +764,290 @@ export default function AnalyticsPage() {
                         );
                       })()}
 
-                      {/* Bars & Points */}
-                      {dailyStats.days.map((d, idx) => {
+                      {/* Dynamic Rendering: Line Graph OR Bar Chart */}
+                      {(() => {
                         const totalDays = dailyStats.days.length;
-                        const spacing = (980 - 60) / Math.max(totalDays, 1);
-                        const x = 60 + idx * spacing;
-                        const val = chartMetric === 'revenue' ? d.revenue : d.ordersCount;
                         const maxVal = chartMetric === 'revenue' ? dailyStats.maxRevenue : dailyStats.maxOrders;
                         const avgVal = chartMetric === 'revenue' ? dailyStats.avgDailyRevenue : dailyStats.avgDailyOrders;
-                        const heightPct = maxVal > 0 ? val / maxVal : 0;
-                        const barHeight = Math.max(heightPct * 200, 4);
-                        const y = 220 - barHeight;
 
-                        const isHigh = val >= avgVal;
-                        const isHighest = d === dailyStats.highestDay;
-                        const isLowest = d === dailyStats.lowestDay && totalDays > 1;
-                        const isHovered = hoveredDay?.date === d.date;
+                        if (chartType === 'line') {
+                          // Coordinates for each date point along the line
+                          const pts = dailyStats.days.map((d, idx) => {
+                            const spacing = totalDays > 1 ? (980 - 60) / (totalDays - 1) : 0;
+                            const x = totalDays > 1 ? 60 + idx * spacing : 520;
+                            const val = chartMetric === 'revenue' ? d.revenue : d.ordersCount;
+                            const heightPct = maxVal > 0 ? val / maxVal : 0;
+                            const y = 220 - heightPct * 200;
+                            const isHigh = val >= avgVal;
+                            const isHighest = d === dailyStats.highestDay;
+                            const isLowest = d === dailyStats.lowestDay && totalDays > 1;
+                            const isHovered = hoveredDay?.date === d.date;
 
-                        return (
-                          <g
-                            key={d.date}
-                            className="cursor-pointer transition-transform"
-                            onMouseEnter={() => setHoveredDay(d)}
-                            onMouseLeave={() => setHoveredDay(null)}
-                          >
-                            {/* Bar */}
-                            <rect
-                              x={x - 12}
-                              y={y}
-                              width="24"
-                              height={barHeight}
-                              rx="4"
-                              fill={isHighest ? 'url(#barGradientHigh)' : isHigh ? '#10b981' : 'url(#barGradientLow)'}
-                              opacity={isHovered ? 1 : 0.85}
-                              className="transition-all hover:opacity-100"
-                            />
+                            return { d, idx, x, y, val, isHigh, isHighest, isLowest, isHovered };
+                          });
 
-                            {/* Peak High Tag */}
-                            {isHighest && (
-                              <g>
-                                <circle cx={x} cy={y - 8} r="4" fill="#059669" />
-                                <text
-                                  x={x}
-                                  y={y - 14}
-                                  textAnchor="middle"
-                                  fontSize="9"
-                                  fontWeight="700"
-                                  fill="#065f46"
+                          // Generate smooth cubic bezier curve
+                          let linePath = '';
+                          if (pts.length === 1) {
+                            linePath = `M ${pts[0].x - 30} ${pts[0].y} L ${pts[0].x + 30} ${pts[0].y}`;
+                          } else if (pts.length === 2) {
+                            linePath = `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
+                          } else if (pts.length > 2) {
+                            linePath = `M ${pts[0].x} ${pts[0].y}`;
+                            for (let i = 0; i < pts.length - 1; i++) {
+                              const p0 = pts[i === 0 ? 0 : i - 1];
+                              const p1 = pts[i];
+                              const p2 = pts[i + 1];
+                              const p3 = pts[i + 2] || p2;
+                              const cp1x = p1.x + (p2.x - p0.x) / 6;
+                              const cp1y = p1.y + (p2.y - p0.y) / 6;
+                              const cp2x = p2.x - (p3.x - p1.x) / 6;
+                              const cp2y = p2.y - (p3.y - p1.y) / 6;
+                              linePath += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+                            }
+                          }
+
+                          const areaPath = pts.length > 1
+                            ? `${linePath} L ${pts[pts.length - 1].x} 220 L ${pts[0].x} 220 Z`
+                            : '';
+
+                          const colWidth = pts.length > 1 ? (980 - 60) / (pts.length - 1) : 60;
+                          const hoveredPt = pts.find((p) => p.isHovered);
+
+                          return (
+                            <g>
+                              {/* Filled Gradient Area */}
+                              {areaPath && (
+                                <path d={areaPath} fill="url(#lineAreaGradient)" />
+                              )}
+
+                              {/* Glowing Smooth Line */}
+                              <path
+                                d={linePath}
+                                fill="none"
+                                stroke="url(#lineStrokeGradient)"
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                filter="url(#lineGlow)"
+                              />
+
+                              {/* Vertical Guide Line on Hover */}
+                              {hoveredPt && (
+                                <g>
+                                  <line
+                                    x1={hoveredPt.x}
+                                    y1="20"
+                                    x2={hoveredPt.x}
+                                    y2="220"
+                                    stroke="#10b981"
+                                    strokeWidth="1.5"
+                                    strokeDasharray="3 3"
+                                    opacity="0.85"
+                                  />
+                                  <circle
+                                    cx={hoveredPt.x}
+                                    cy={hoveredPt.y}
+                                    r="10"
+                                    fill="#10b981"
+                                    opacity="0.2"
+                                  />
+                                </g>
+                              )}
+
+                              {/* Points & Interactive Zones */}
+                              {pts.map((p) => (
+                                <g
+                                  key={p.d.date}
+                                  className="cursor-pointer"
+                                  onMouseEnter={() => setHoveredDay(p.d)}
+                                  onMouseLeave={() => setHoveredDay(null)}
                                 >
-                                  HIGH 🔥
-                                </text>
-                              </g>
-                            )}
+                                  {/* Transparent column hit area */}
+                                  <rect
+                                    x={p.x - colWidth / 2}
+                                    y="20"
+                                    width={colWidth}
+                                    height="210"
+                                    fill="transparent"
+                                  />
 
-                            {/* Lowest Tag */}
-                            {isLowest && (
-                              <text
-                                x={x}
-                                y={y - 8}
-                                textAnchor="middle"
-                                fontSize="9"
-                                fontWeight="600"
-                                fill="#71717a"
-                              >
-                                LOW ❄️
-                              </text>
-                            )}
+                                  {/* Point Marker */}
+                                  <circle
+                                    cx={p.x}
+                                    cy={p.y}
+                                    r={p.isHovered ? 6.5 : p.isHighest ? 5 : 4}
+                                    fill={p.isHighest ? '#059669' : p.isHigh ? '#10b981' : '#71717a'}
+                                    stroke="#ffffff"
+                                    strokeWidth={p.isHovered ? 3 : 2}
+                                    className="transition-all duration-150"
+                                  />
 
-                            {/* Date Label on X axis */}
-                            <text
-                              x={x}
-                              y="245"
-                              textAnchor="middle"
-                              fontSize="10"
-                              fill={isHovered ? '#000000' : '#737373'}
-                              fontWeight={isHovered ? '700' : '500'}
-                            >
-                              {d.date.slice(5)}
-                            </text>
+                                  {/* Peak High Tag */}
+                                  {p.isHighest && (
+                                    <g>
+                                      <rect
+                                        x={p.x - 22}
+                                        y={p.y - 25}
+                                        width="44"
+                                        height="16"
+                                        rx="8"
+                                        fill="#065f46"
+                                      />
+                                      <text
+                                        x={p.x}
+                                        y={p.y - 14}
+                                        textAnchor="middle"
+                                        fontSize="9"
+                                        fontWeight="700"
+                                        fill="#ffffff"
+                                      >
+                                        PEAK
+                                      </text>
+                                    </g>
+                                  )}
+
+                                  {/* Lowest Tag */}
+                                  {p.isLowest && (
+                                    <g>
+                                      <rect
+                                        x={p.x - 20}
+                                        y={Math.min(p.y + 10, 206)}
+                                        width="40"
+                                        height="14"
+                                        rx="7"
+                                        fill="#71717a"
+                                      />
+                                      <text
+                                        x={p.x}
+                                        y={Math.min(p.y + 20, 216)}
+                                        textAnchor="middle"
+                                        fontSize="8.5"
+                                        fontWeight="600"
+                                        fill="#ffffff"
+                                      >
+                                        LOW
+                                      </text>
+                                    </g>
+                                  )}
+
+                                  {/* Date Label on X axis */}
+                                  <text
+                                    x={p.x}
+                                    y="245"
+                                    textAnchor="middle"
+                                    fontSize="10"
+                                    fill={p.isHovered ? '#000000' : '#737373'}
+                                    fontWeight={p.isHovered ? '700' : '500'}
+                                  >
+                                    {p.d.date.slice(5)}
+                                  </text>
+                                </g>
+                              ))}
+                            </g>
+                          );
+                        }
+
+                        // Bar Chart Rendering
+                        const spacing = (980 - 60) / Math.max(totalDays, 1);
+                        return (
+                          <g>
+                            {dailyStats.days.map((d, idx) => {
+                              const x = 60 + idx * spacing;
+                              const val = chartMetric === 'revenue' ? d.revenue : d.ordersCount;
+                              const heightPct = maxVal > 0 ? val / maxVal : 0;
+                              const barHeight = Math.max(heightPct * 200, 4);
+                              const y = 220 - barHeight;
+
+                              const isHigh = val >= avgVal;
+                              const isHighest = d === dailyStats.highestDay;
+                              const isLowest = d === dailyStats.lowestDay && totalDays > 1;
+                              const isHovered = hoveredDay?.date === d.date;
+
+                              return (
+                                <g
+                                  key={d.date}
+                                  className="cursor-pointer transition-transform"
+                                  onMouseEnter={() => setHoveredDay(d)}
+                                  onMouseLeave={() => setHoveredDay(null)}
+                                >
+                                  {/* Bar */}
+                                  <rect
+                                    x={x - 12}
+                                    y={y}
+                                    width="24"
+                                    height={barHeight}
+                                    rx="4"
+                                    fill={isHighest ? 'url(#barGradientHigh)' : isHigh ? '#10b981' : 'url(#barGradientLow)'}
+                                    opacity={isHovered ? 1 : 0.85}
+                                    className="transition-all hover:opacity-100"
+                                  />
+
+                                  {/* Peak High Tag */}
+                                  {isHighest && (
+                                    <g>
+                                      <rect
+                                        x={x - 22}
+                                        y={y - 22}
+                                        width="44"
+                                        height="16"
+                                        rx="8"
+                                        fill="#065f46"
+                                      />
+                                      <text
+                                        x={x}
+                                        y={y - 11}
+                                        textAnchor="middle"
+                                        fontSize="9"
+                                        fontWeight="700"
+                                        fill="#ffffff"
+                                      >
+                                        PEAK
+                                      </text>
+                                    </g>
+                                  )}
+
+                                  {/* Lowest Tag */}
+                                  {isLowest && (
+                                    <g>
+                                      <rect
+                                        x={x - 20}
+                                        y={y - 20}
+                                        width="40"
+                                        height="14"
+                                        rx="7"
+                                        fill="#71717a"
+                                      />
+                                      <text
+                                        x={x}
+                                        y={y - 10}
+                                        textAnchor="middle"
+                                        fontSize="8.5"
+                                        fontWeight="600"
+                                        fill="#ffffff"
+                                      >
+                                        LOW
+                                      </text>
+                                    </g>
+                                  )}
+
+                                  {/* Date Label on X axis */}
+                                  <text
+                                    x={x}
+                                    y="245"
+                                    textAnchor="middle"
+                                    fontSize="10"
+                                    fill={isHovered ? '#000000' : '#737373'}
+                                    fontWeight={isHovered ? '700' : '500'}
+                                  >
+                                    {d.date.slice(5)}
+                                  </text>
+                                </g>
+                              );
+                            })}
                           </g>
                         );
-                      })}
+                      })()}
                     </svg>
 
                     {/* Hover Floating Tooltip */}

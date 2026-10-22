@@ -91,8 +91,18 @@ export async function POST(req: NextRequest) {
       await d1Store.setStages(d1, userId, initialStages);
     }
 
+    const sessionUser = {
+      userId,
+      ownerId: userId,
+      email: cleanEmail,
+      name: fullName.trim(),
+      role: 'Admin' as const,
+    };
+    const token = Buffer.from(JSON.stringify(sessionUser)).toString('base64');
+
     const response = NextResponse.json({
       success: true,
+      token,
       user: {
         id: newUser.id,
         ownerId: userId,

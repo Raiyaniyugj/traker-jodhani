@@ -10,13 +10,35 @@ interface HeaderProps {
   rightAction?: React.ReactNode;
 }
 
+function getInitials(name: string): string {
+  if (!name) return 'AT';
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] || 'U') + (parts[1]?.[0] || parts[0]?.[1] || '')).toUpperCase();
+}
+
 export default function Header({ title, subtitle, rightAction }: HeaderProps) {
   const router = useRouter();
   const [userName, setUserName] = useState('');
   const [userRole, setUserRole] = useState('');
   const [initials, setInitials] = useState('');
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
+    // 1. Immediately hydrate from cache to prevent any flicker during navigation
+    try {
+      const cached = localStorage.getItem('trackerz_user');
+      if (cached) {
+        const u = JSON.parse(cached);
+        if (u?.name) {
+          setUserName(u.name);
+          setUserRole(u.role || 'Admin');
+          setInitials(getInitials(u.name));
+          setIsReady(true);
+        }
+      }
+    } catch {}
+
+    // 2. Fetch fresh user info from server in the background
     async function loadUser() {
       try {
         const res = await fetch('/api/auth/me');
@@ -25,9 +47,11 @@ export default function Header({ title, subtitle, rightAction }: HeaderProps) {
           if (data.user?.name) {
             setUserName(data.user.name);
             setUserRole(data.user.role || 'Admin');
-            const parts = data.user.name.trim().split(/\s+/);
-            const init = (parts[0]?.[0] || 'U') + (parts[1]?.[0] || parts[0]?.[1] || '');
-            setInitials(init.toUpperCase());
+            setInitials(getInitials(data.user.name));
+            setIsReady(true);
+            try {
+              localStorage.setItem('trackerz_user', JSON.stringify(data.user));
+            } catch {}
           } else {
             router.push('/login');
           }
@@ -43,6 +67,10 @@ export default function Header({ title, subtitle, rightAction }: HeaderProps) {
 
   const handleLogout = async () => {
     try {
+      try {
+        localStorage.removeItem('trackerz_token');
+        localStorage.removeItem('trackerz_user');
+      } catch {}
       await fetch('/api/auth/logout', { method: 'POST' });
       router.push('/login');
     } catch (e) {
@@ -66,16 +94,25 @@ export default function Header({ title, subtitle, rightAction }: HeaderProps) {
 
         <div className="flex items-center gap-3 pl-2 border-l border-neutral-200">
           <div className="text-right">
-            <p className="text-sm font-medium text-neutral-900 leading-tight">
-              {userName || 'Atelier'}
-            </p>
-            <p className="text-[11px] text-neutral-500 leading-tight">
-              {userRole || 'Team'}
-            </p>
+            {isReady && userName ? (
+              <>
+                <p className="text-sm font-medium text-neutral-900 leading-tight">
+                  {userName}
+                </p>
+                <p className="text-[11px] text-neutral-500 leading-tight">
+                  {userRole || 'Team'}
+                </p>
+              </>
+            ) : (
+              <div className="space-y-1">
+                <div className="h-3.5 w-20 bg-neutral-200 rounded animate-pulse" />
+                <div className="h-2.5 w-12 bg-neutral-100 rounded animate-pulse ml-auto" />
+              </div>
+            )}
           </div>
 
           <div className="w-9 h-9 rounded-full bg-black text-white flex items-center justify-center font-medium text-xs tracking-wider shadow-sm">
-            {initials || 'AT'}
+            {isReady && initials ? initials : '...'}
           </div>
 
           <button

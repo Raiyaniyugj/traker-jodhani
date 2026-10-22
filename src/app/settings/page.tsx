@@ -41,9 +41,12 @@ export default function SettingsPage() {
 
   // Form states
   const [shopDomain, setShopDomain] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
   const [webhookSecret, setWebhookSecret] = useState('');
   const [adminAccessToken, setAdminAccessToken] = useState('');
   const [showSecret, setShowSecret] = useState(false);
+  const [showClientSecret, setShowClientSecret] = useState(false);
   const [showToken, setShowToken] = useState(false);
 
   // Public domain override (useful when testing with ngrok or custom domain)
@@ -82,6 +85,8 @@ export default function SettingsPage() {
           const loadedDomain = data.settings.shopify?.shopDomain || '';
           // Ensure email address is never loaded as shop domain
           setShopDomain(loadedDomain.includes('@') ? '' : loadedDomain);
+          setClientId(data.settings.shopify?.clientId || '');
+          setClientSecret(data.settings.shopify?.clientSecret || '');
           setWebhookSecret(data.settings.shopify?.webhookSecret || '');
           setAdminAccessToken(data.settings.shopify?.adminAccessToken || '');
         }
@@ -170,6 +175,8 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shopDomain: cleanDomain,
+          clientId: clientId.trim(),
+          clientSecret: clientSecret.trim(),
           webhookSecret: webhookSecret.trim(),
           adminAccessToken: adminAccessToken.trim(),
         }),
@@ -200,11 +207,15 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shopDomain: '',
+          clientId: '',
+          clientSecret: '',
           webhookSecret: '',
           adminAccessToken: '',
         }),
       });
       setShopDomain('');
+      setClientId('');
+      setClientSecret('');
       setWebhookSecret('');
       setAdminAccessToken('');
       loadData();
@@ -574,12 +585,74 @@ export default function SettingsPage() {
                 </p>
               </div>
 
+              {/* App Client Credentials for Permanent Connection */}
+              <div className="bg-neutral-50/70 border border-neutral-200 rounded-lg p-3.5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-neutral-800 flex items-center gap-1.5">
+                    Shopify App Client Credentials
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-medium border border-emerald-300">
+                      Auto-Renews Token (Never Disconnects)
+                    </span>
+                  </span>
+                  {clientId && clientSecret ? (
+                    <span className="text-[11px] text-emerald-600 font-medium font-mono">✓ Permanent Auto-Refresh Enabled</span>
+                  ) : null}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1">
+                      Client ID / API Key
+                    </label>
+                    <input
+                      type="text"
+                      name="shopify_client_id_input"
+                      id="shopify_client_id_input"
+                      value={clientId}
+                      onChange={(e) => setClientId(e.target.value)}
+                      placeholder="e.g. 5639114394f383..."
+                      autoComplete="off"
+                      className="w-full rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-black bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-500 mb-1">
+                      Client Secret (Shared Secret)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showClientSecret ? 'text' : 'password'}
+                        name="shopify_client_secret_input"
+                        id="shopify_client_secret_input"
+                        value={clientSecret}
+                        onChange={(e) => setClientSecret(e.target.value)}
+                        placeholder="shpss_..."
+                        autoComplete="off"
+                        className="w-full rounded-md border border-neutral-300 px-3 py-1.5 pr-8 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-black bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowClientSecret(!showClientSecret)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 p-0.5"
+                        tabIndex={-1}
+                      >
+                        {showClientSecret ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-[11px] text-neutral-500 leading-relaxed">
+                  From Shopify Partner or Dev Dashboard. Trackerz uses these credentials to automatically exchange and refresh access tokens before they expire, ensuring your store connection never drops.
+                </p>
+              </div>
+
               <div>
                 <label className="text-xs font-medium text-neutral-500 mb-1.5 flex items-center justify-between">
                   <span>
                     Webhook Signing Secret{' '}
-                    <span className="text-emerald-600 font-semibold">
-                      (100% Optional — Leave BLANK if you can&apos;t find it)
+                    <span className="text-neutral-400 font-normal">
+                      (Optional — verify incoming webhook signatures)
                     </span>
                   </span>
                   {webhookSecret ? (
@@ -593,7 +666,7 @@ export default function SettingsPage() {
                     id="shopify_webhook_secret_input"
                     value={webhookSecret}
                     onChange={(e) => setWebhookSecret(e.target.value)}
-                    placeholder="Optional — leave blank"
+                    placeholder="Optional (or paste your shpss_ secret)"
                     autoComplete="new-password"
                     data-1p-ignore="true"
                     data-lpignore="true"
@@ -610,9 +683,6 @@ export default function SettingsPage() {
                     {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[11px] text-neutral-400 mt-1">
-                  You do NOT need this to receive Shopify orders. You can leave it empty.
-                </p>
               </div>
 
               <div>
@@ -620,11 +690,11 @@ export default function SettingsPage() {
                   <span>
                     Shopify Admin API Access Token{' '}
                     <span className="text-neutral-400 font-normal">
-                      (Optional — needed only to import past historical orders via &quot;Sync Orders Now&quot;)
+                      {clientId && clientSecret ? '(Auto-managed via Client Credentials)' : '(Optional — custom app shpat_ token)'}
                     </span>
                   </span>
                   {adminAccessToken ? (
-                    <span className="text-[11px] text-emerald-600 font-medium font-mono">✓ Token saved</span>
+                    <span className="text-[11px] text-emerald-600 font-medium font-mono">✓ Active Token Connected</span>
                   ) : null}
                 </label>
                 <div className="relative">
@@ -634,7 +704,7 @@ export default function SettingsPage() {
                     id="shopify_admin_access_token_input"
                     value={adminAccessToken}
                     onChange={(e) => setAdminAccessToken(e.target.value)}
-                    placeholder="shpat_..."
+                    placeholder={clientId && clientSecret ? 'Auto-managed by Client ID & Secret' : 'shpat_...'}
                     autoComplete="new-password"
                     data-1p-ignore="true"
                     data-lpignore="true"
@@ -652,7 +722,9 @@ export default function SettingsPage() {
                   </button>
                 </div>
                 <p className="text-[11px] text-neutral-400 mt-1">
-                  Generate in Shopify Admin → Apps and sales channels → Develop apps → Create an app (select &quot;read_orders&quot; scope).
+                  {clientId && clientSecret 
+                    ? 'Automatically generated and renewed in the background so you never have to re-enter it.' 
+                    : 'Custom app token starting with "shpat_" or Dev token starting with "atkn_".'}
                 </p>
               </div>
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
 import { getD1Database, d1Store } from '@/lib/d1';
-import { testShopifyConnection, normalizeShopifyDomain } from '@/lib/shopify';
+import { testShopifyConnection, normalizeShopifyDomain, exchangeClientCredentialsForToken } from '@/lib/shopify';
 import { getSessionUser } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -13,14 +13,17 @@ export async function POST(req: NextRequest) {
 
     const workspaceId = session.ownerId || session.userId;
     const body = await req.json();
-    const { shopDomain, adminAccessToken, webhookSecret } = body;
+    const { shopDomain, adminAccessToken, webhookSecret, clientId, clientSecret } = body;
 
     // Disconnect request
     if (shopDomain === '') {
       db.updateShopifyConfig(workspaceId, {
         shopDomain: '',
         webhookSecret: '',
+        clientId: '',
+        clientSecret: '',
         adminAccessToken: '',
+        tokenExpiresAt: '',
         isConnected: false,
         lastError: '',
         lastSuccessMessage: '',
@@ -64,45 +67,85 @@ export async function POST(req: NextRequest) {
       existingSettings = db.getSettings(workspaceId);
     }
 
-    const effectiveToken = (adminAccessToken || '').trim() || existingSettings?.shopify?.adminAccessToken || '';
-    const effectiveSecret = (webhookSecret || '').trim() || existingSettings?.shopify?.webhookSecret || '';
+    const effectiveToken = adminAccessToken !== undefined
+      ? (adminAccessToken || '').trim()
+      : (existingSettings?.shopify?.adminAccessToken || '');
+    const effectiveSecret = webhookSecret !== undefined
+      ? (webhookSecret || '').trim()
+      : (existingSettings?.shopify?.webhookSecret || '');
 
-    // If an access token is provided or already stored, test live connection first
+    const effectiveClientId = (clientId !== undefined ? clientId : (existingSettings?.shopify?.clientId || '')).trim() || (process.env.SHOPIFY_CLIENT_ID || '');
+    let effectiveClientSecret = (clientSecret !== undefined ? clientSecret : (existingSettings?.shopify?.clientSecret || '')).trim();
+    if (!effectiveClientSecret && effectiveSecret.startsWith('shpss_')) {
+      effectiveClientSecret = effectiveSecret;
+    }
+    if (!effectiveClientSecret) {
+      effectiveClientSecret = process.env.SHOPIFY_CLIENT_SECRET || '';
+    }
+
     let verifiedShopName = cleanDomain;
-    if (effectiveToken && !effectiveToken.includes('demo')) {
-      const result = await testShopifyConnection(cleanDomain, effectiveToken);
-      if (!result.success) {
-        const errorMsg = result.error || 'Could not verify credentials with Shopify';
-        // Persist failure reason so dashboard & settings reflect the problem
-        const updated = db.updateShopifyConfig(workspaceId, {
-          shopDomain: cleanDomain,
-          adminAccessToken: effectiveToken,
-          webhookSecret: effectiveSecret,
-          isConnected: false,
-          lastError: errorMsg,
-        });
-        if (d1) {
-          await d1Store.updateSettings(d1, workspaceId, updated);
-        }
+    let finalToken = effectiveToken;
+    let tokenExpiresAt = existingSettings?.shopify?.tokenExpiresAt || '';
 
-        return NextResponse.json({
-          success: false,
-          error: errorMsg,
-          problemReason: errorMsg,
-          isConnected: false,
-        }, { status: 400 });
-      }
-      if (result.shop?.name) {
-        verifiedShopName = result.shop.name;
+    // If client credentials are available, attempt exchange to get or refresh token
+    if (effectiveClientId && effectiveClientSecret) {
+      const exchange = await exchangeClientCredentialsForToken(cleanDomain, effectiveClientId, effectiveClientSecret);
+      if (exchange.success && exchange.accessToken) {
+        finalToken = exchange.accessToken;
+        tokenExpiresAt = exchange.tokenExpiresAt || '';
       }
     }
 
+    // Now test connection to Shopify
+    let result = await testShopifyConnection(cleanDomain, finalToken, {
+      clientId: effectiveClientId,
+      clientSecret: effectiveClientSecret,
+      onTokenRefreshed: (newToken, expiresAt) => {
+        finalToken = newToken;
+        tokenExpiresAt = expiresAt;
+      },
+    });
+
+    if (!result.success) {
+      const errorMsg = result.error || 'Could not verify credentials with Shopify';
+      const updated = db.updateShopifyConfig(workspaceId, {
+        shopDomain: cleanDomain,
+        adminAccessToken: finalToken,
+        clientId: effectiveClientId,
+        clientSecret: effectiveClientSecret,
+        tokenExpiresAt,
+        webhookSecret: effectiveSecret,
+        isConnected: false,
+        lastError: errorMsg,
+      });
+      if (d1) {
+        await d1Store.updateSettings(d1, workspaceId, updated);
+      }
+
+      return NextResponse.json({
+        success: false,
+        error: errorMsg,
+        problemReason: errorMsg,
+        isConnected: false,
+      }, { status: 400 });
+    }
+
+    if (result.shop?.name) {
+      verifiedShopName = result.shop.name;
+    }
+    if ((result as any).activeToken) {
+      finalToken = (result as any).activeToken;
+    }
+
     // Save successful configuration
-    const successMsg = `Shopify store ${cleanDomain} connected successfully! Live webhook endpoint is ready.`;
+    const successMsg = `Shopify store ${cleanDomain} connected successfully! Live webhook and auto-refresh are active.`;
     const updated = db.updateShopifyConfig(workspaceId, {
       shopDomain: cleanDomain,
       webhookSecret: effectiveSecret,
-      adminAccessToken: effectiveToken,
+      clientId: effectiveClientId,
+      clientSecret: effectiveClientSecret,
+      adminAccessToken: finalToken,
+      tokenExpiresAt,
       isConnected: true,
       lastError: '',
       lastSuccessMessage: successMsg,

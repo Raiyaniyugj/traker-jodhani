@@ -33,6 +33,14 @@ export default function SignupPage() {
       });
       const data = await res.json();
       if (data.success) {
+        if (data.token) {
+          try {
+            localStorage.setItem('trackerz_token', data.token);
+            if (data.user) {
+              localStorage.setItem('trackerz_user', JSON.stringify(data.user));
+            }
+          } catch {}
+        }
         router.push('/dashboard');
       } else {
         setError(data.error || 'Failed to create workspace');

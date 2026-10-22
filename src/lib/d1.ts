@@ -242,7 +242,10 @@ export const d1Store = {
           shopify: {
             shopDomain: row.shopify_shop_domain || '',
             webhookSecret: row.shopify_webhook_secret || '',
+            clientId: row.shopify_client_id || '',
+            clientSecret: row.shopify_client_secret || '',
             adminAccessToken: row.shopify_admin_access_token || '',
+            tokenExpiresAt: row.shopify_token_expires_at || '',
             isConnected: Boolean(row.shopify_is_connected),
             lastSyncAt: row.shopify_last_sync_at || '',
             autoSync: Boolean(row.shopify_auto_sync),
@@ -261,7 +264,10 @@ export const d1Store = {
         shopify: {
           shopDomain: '',
           webhookSecret: '',
+          clientId: '',
+          clientSecret: '',
           adminAccessToken: '',
+          tokenExpiresAt: '',
           isConnected: false,
           lastSyncAt: '',
           autoSync: true,
@@ -299,7 +305,10 @@ export const d1Store = {
         shopify: {
           shopDomain: row.shopify_shop_domain || '',
           webhookSecret: row.shopify_webhook_secret || '',
+          clientId: row.shopify_client_id || '',
+          clientSecret: row.shopify_client_secret || '',
           adminAccessToken: row.shopify_admin_access_token || '',
+          tokenExpiresAt: row.shopify_token_expires_at || '',
           isConnected: Boolean(row.shopify_is_connected),
           lastSyncAt: row.shopify_last_sync_at || '',
           autoSync: Boolean(row.shopify_auto_sync),
@@ -321,9 +330,10 @@ export const d1Store = {
         .prepare(
           `INSERT OR REPLACE INTO settings (
             id, user_id, company_name, owner_name, email, phone, currency,
-            shopify_shop_domain, shopify_webhook_secret, shopify_admin_access_token,
+            shopify_shop_domain, shopify_webhook_secret, shopify_client_id, shopify_client_secret,
+            shopify_admin_access_token, shopify_token_expires_at,
             shopify_is_connected, shopify_last_sync_at, shopify_auto_sync, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
         )
         .bind(
           userId,
@@ -335,7 +345,10 @@ export const d1Store = {
           s.currency || '$',
           s.shopify?.shopDomain || '',
           s.shopify?.webhookSecret || '',
+          s.shopify?.clientId || '',
+          s.shopify?.clientSecret || '',
           s.shopify?.adminAccessToken || '',
+          s.shopify?.tokenExpiresAt || '',
           s.shopify?.isConnected ? 1 : 0,
           s.shopify?.lastSyncAt || '',
           s.shopify?.autoSync !== false ? 1 : 0

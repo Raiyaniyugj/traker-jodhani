@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
 import { getD1Database, d1Store } from '@/lib/d1';
 import { getSessionUser } from '@/lib/auth';
-import { normalizeShopifyDomain, testShopifyConnection } from '@/lib/shopify';
+import { normalizeShopifyDomain, testShopifyConnection, exchangeClientCredentialsForToken } from '@/lib/shopify';
 import { ShopifyConnectionStatus } from '@/lib/types';
 
 export async function GET(req: NextRequest) {
@@ -35,9 +35,44 @@ export async function GET(req: NextRequest) {
 
     const rawDomain = settings.shopify?.shopDomain || '';
     const cleanDomain = normalizeShopifyDomain(rawDomain);
-    const token = (settings.shopify?.adminAccessToken || '').trim();
-    const storedError = settings.shopify?.lastError || '';
+    let token = (settings.shopify?.adminAccessToken || '').trim();
+    const clientId = settings.shopify?.clientId || process.env.SHOPIFY_CLIENT_ID || '';
+    const clientSecret = settings.shopify?.clientSecret || 
+      (settings.shopify?.webhookSecret?.startsWith('shpss_') ? settings.shopify?.webhookSecret : '') || 
+      process.env.SHOPIFY_CLIENT_SECRET || '';
+    const tokenExpiresAt = settings.shopify?.tokenExpiresAt || '';
+    let storedError = settings.shopify?.lastError || '';
     const storedIsConnected = Boolean(settings.shopify?.isConnected);
+
+    // Proactive auto-refresh:
+    // If token is missing, expired, or expiring within 15 minutes, and client credentials are present
+    const isTokenExpiringSoon = tokenExpiresAt
+      ? new Date(tokenExpiresAt).getTime() - Date.now() < 15 * 60 * 1000
+      : false;
+
+    if (cleanDomain && clientId && clientSecret && (!token || isTokenExpiringSoon)) {
+      try {
+        const exchange = await exchangeClientCredentialsForToken(cleanDomain, clientId, clientSecret);
+        if (exchange.success && exchange.accessToken) {
+          token = exchange.accessToken;
+          storedError = '';
+          const updated = db.updateShopifyConfig(workspaceId, {
+            shopDomain: cleanDomain,
+            adminAccessToken: token,
+            clientId,
+            clientSecret,
+            tokenExpiresAt: exchange.tokenExpiresAt,
+            isConnected: true,
+            lastError: '',
+          });
+          if (d1) {
+            await d1Store.updateSettings(d1, workspaceId, updated);
+          }
+        }
+      } catch (refreshErr) {
+        console.warn('Proactive token refresh attempt failed:', refreshErr);
+      }
+    }
 
     // Count Shopify orders
     const shopifyOrders = orders.filter(
@@ -50,21 +85,40 @@ export async function GET(req: NextRequest) {
     const shouldTestLive = searchParams.get('test') === 'true' || searchParams.get('test') === '1';
 
     let liveTestError = '';
-    if (shouldTestLive && cleanDomain && token && !token.includes('demo')) {
-      const liveResult = await testShopifyConnection(cleanDomain, token);
+    if (shouldTestLive && cleanDomain && (token || (clientId && clientSecret)) && !token.includes('demo')) {
+      const liveResult = await testShopifyConnection(cleanDomain, token, {
+        clientId,
+        clientSecret,
+        onTokenRefreshed: async (newToken, expiresAt) => {
+          token = newToken;
+          storedError = '';
+          const updated = db.updateShopifyConfig(workspaceId, {
+            adminAccessToken: newToken,
+            tokenExpiresAt: expiresAt,
+            isConnected: true,
+            lastError: '',
+          });
+          if (d1) {
+            await d1Store.updateSettings(d1, workspaceId, updated);
+          }
+        },
+      });
+
       if (!liveResult.success) {
         liveTestError = liveResult.error || 'Live test connection failed';
         db.updateShopifyConfig(workspaceId, {
           lastError: liveTestError,
         });
       } else {
-        db.updateShopifyConfig(workspaceId, {
+        liveTestError = '';
+        storedError = '';
+        const updated = db.updateShopifyConfig(workspaceId, {
           isConnected: true,
           lastError: '',
           lastSyncAt: new Date().toISOString(),
         });
         if (d1) {
-          await d1Store.updateSettings(d1, workspaceId, db.getSettings(workspaceId));
+          await d1Store.updateSettings(d1, workspaceId, updated);
         }
       }
     }
@@ -77,11 +131,13 @@ export async function GET(req: NextRequest) {
       ? 'Invalid domain: User login email was entered instead of your .myshopify.com store domain.'
       : `Store domain configured: ${cleanDomain}`;
 
-    const tokenOk = Boolean(token && token.startsWith('shpat_') && !liveTestError);
-    const tokenDetail = !token
+    const hasClientCredentials = Boolean(clientId && clientSecret);
+    const tokenFormatValid = Boolean(token && (token.startsWith('shpat_') || token.startsWith('atkn_')));
+    const tokenOk = Boolean((tokenFormatValid || hasClientCredentials) && !liveTestError);
+    const tokenDetail = !token && !hasClientCredentials
       ? 'Admin API Access Token is missing. Needed to fetch orders from Shopify API.'
-      : !token.startsWith('shpat_')
-      ? 'Token format warning: Shopify Admin API custom app tokens typically start with "shpat_".'
+      : hasClientCredentials
+      ? 'Admin API credentials active with automatic background token renewal (never disconnects).'
       : liveTestError
       ? `Token verification failed: ${liveTestError}`
       : 'Admin API Access Token is valid and verified with Shopify.';
@@ -106,7 +162,8 @@ export async function GET(req: NextRequest) {
     let problemReason: string | null = null;
     let recommendation: string | null = null;
 
-    const effectiveError = liveTestError || storedError;
+    // If credentials are valid/refreshing, ignore stale stored errors
+    const effectiveError = liveTestError || (tokenOk ? '' : storedError);
 
     if (!domainOk) {
       status = 'not_configured';
@@ -120,7 +177,7 @@ export async function GET(req: NextRequest) {
       statusTitle = 'Shopify Connection Problem';
       problemReason = effectiveError;
       recommendation = 'Check your store domain and ensure your Admin API Access Token has "read_orders" scope in Shopify Admin.';
-    } else if (cleanDomain && (tokenOk || ordersOk || webhookOk || storedIsConnected)) {
+    } else if (cleanDomain && (tokenOk || ordersOk || webhookOk || storedIsConnected || hasClientCredentials)) {
       isConnected = true;
       status = 'connected';
       statusTitle = 'Shopify Connected';

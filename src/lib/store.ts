@@ -194,7 +194,10 @@ export const db = {
       shopify: {
         shopDomain: '',
         webhookSecret: '',
+        clientId: '',
+        clientSecret: '',
         adminAccessToken: '',
+        tokenExpiresAt: '',
         isConnected: false,
         lastSyncAt: '',
         autoSync: true,
@@ -236,7 +239,10 @@ export const db = {
       shopify: {
         shopDomain: '',
         webhookSecret: '',
+        clientId: '',
+        clientSecret: '',
         adminAccessToken: '',
+        tokenExpiresAt: '',
         isConnected: false,
         lastSyncAt: '',
         autoSync: true,

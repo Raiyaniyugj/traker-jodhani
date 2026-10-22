@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
 import { getD1Database, d1Store } from '@/lib/d1';
-import { fetchShopifyOrders, parseShopifyOrderPayload, normalizeShopifyDomain, enrichOrderWithShopifyImages } from '@/lib/shopify';
+import { fetchShopifyOrders, parseShopifyOrderPayload, normalizeShopifyDomain, enrichOrderWithShopifyImages, exchangeClientCredentialsForToken } from '@/lib/shopify';
 
 import { getSessionUser } from '@/lib/auth';
 
@@ -26,7 +26,11 @@ export async function POST(req: NextRequest) {
 
     const rawDomain = settings.shopify?.shopDomain || '';
     const cleanDomain = normalizeShopifyDomain(rawDomain);
-    const adminAccessToken = settings.shopify?.adminAccessToken?.trim() || '';
+    let adminAccessToken = settings.shopify?.adminAccessToken?.trim() || '';
+    const clientId = settings.shopify?.clientId || process.env.SHOPIFY_CLIENT_ID || '';
+    const clientSecret = settings.shopify?.clientSecret || 
+      (settings.shopify?.webhookSecret?.startsWith('shpss_') ? settings.shopify?.webhookSecret : '') || 
+      process.env.SHOPIFY_CLIENT_SECRET || '';
 
     if (!cleanDomain) {
       const errorMsg = 'Shopify Store Domain is not configured. Please enter your store domain (e.g. yourstore.myshopify.com) in Settings first.';
@@ -37,8 +41,25 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    if (!adminAccessToken || !adminAccessToken.startsWith('shpat_')) {
-      const errorMsg = 'Shopify Admin API Access Token is required to fetch historical orders. Please generate a custom app token starting with "shpat_" in Shopify Admin → Apps → Develop apps (with "read_orders" scope).';
+    // If token is missing, expired, or not set, but client credentials are provided, auto-exchange
+    if (!adminAccessToken && clientId && clientSecret) {
+      const exchange = await exchangeClientCredentialsForToken(cleanDomain, clientId, clientSecret);
+      if (exchange.success && exchange.accessToken) {
+        adminAccessToken = exchange.accessToken;
+        const updated = db.updateShopifyConfig(workspaceId, {
+          adminAccessToken: exchange.accessToken,
+          tokenExpiresAt: exchange.tokenExpiresAt,
+          isConnected: true,
+          lastError: '',
+        });
+        if (d1) {
+          await d1Store.updateSettings(d1, workspaceId, updated);
+        }
+      }
+    }
+
+    if (!adminAccessToken) {
+      const errorMsg = 'Shopify Admin API Access Token or App Client ID & Secret is required to sync orders. Please configure your Shopify App credentials in Settings.';
       return NextResponse.json({
         success: false,
         error: errorMsg,
@@ -52,12 +73,45 @@ export async function POST(req: NextRequest) {
     try {
       rawOrders = await fetchShopifyOrders(cleanDomain, adminAccessToken);
     } catch (apiError: any) {
-      const errorMsg = `Could not fetch orders from Shopify: ${apiError.message}`;
-      return NextResponse.json({
-        success: false,
-        error: errorMsg,
-        problemReason: errorMsg,
-      }, { status: 400 });
+      let refreshed = false;
+
+      if (clientId && clientSecret) {
+        try {
+          const exchangeResult = await exchangeClientCredentialsForToken(cleanDomain, clientId, clientSecret);
+          if (exchangeResult.success && exchangeResult.accessToken) {
+            adminAccessToken = exchangeResult.accessToken;
+            const updated = db.updateShopifyConfig(workspaceId, {
+              adminAccessToken: exchangeResult.accessToken,
+              tokenExpiresAt: exchangeResult.tokenExpiresAt,
+              isConnected: true,
+              lastError: '',
+            });
+            if (d1) {
+              await d1Store.updateSettings(d1, workspaceId, updated);
+            }
+            rawOrders = await fetchShopifyOrders(cleanDomain, adminAccessToken);
+            refreshed = true;
+          }
+        } catch (refreshErr) {
+          console.warn('Auto token refresh attempt failed during sync:', refreshErr);
+        }
+      }
+
+      if (!refreshed) {
+        let errorMsg = `Could not fetch orders from Shopify: ${apiError.message}`;
+        if (
+          apiError.message?.includes('401') ||
+          apiError.message?.includes('Invalid API key') ||
+          apiError.message?.includes('access token')
+        ) {
+          errorMsg = `Shopify rejected credentials (HTTP 401 Unauthorized): The Admin API Access Token (${adminAccessToken.slice(0, 10)}...) is invalid or expired. Please check your Shopify App credentials in Settings.`;
+        }
+        return NextResponse.json({
+          success: false,
+          error: errorMsg,
+          problemReason: errorMsg,
+        }, { status: 400 });
+      }
     }
 
     let existingOrders = db.getOrders(workspaceId);

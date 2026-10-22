@@ -186,7 +186,10 @@ export const neonStore = {
           shopify: {
             shopDomain: row.shopify_shop_domain || '',
             webhookSecret: row.shopify_webhook_secret || '',
+            clientId: row.shopify_client_id || '',
+            clientSecret: row.shopify_client_secret || '',
             adminAccessToken: row.shopify_admin_access_token || '',
+            tokenExpiresAt: row.shopify_token_expires_at || '',
             isConnected: Boolean(row.shopify_is_connected),
             lastSyncAt: row.shopify_last_sync_at || '',
             autoSync: Boolean(row.shopify_auto_sync),
@@ -205,7 +208,10 @@ export const neonStore = {
         shopify: {
           shopDomain: '',
           webhookSecret: '',
+          clientId: '',
+          clientSecret: '',
           adminAccessToken: '',
+          tokenExpiresAt: '',
           isConnected: false,
           lastSyncAt: '',
           autoSync: true,
@@ -238,7 +244,10 @@ export const neonStore = {
         shopify: {
           shopDomain: row.shopify_shop_domain || '',
           webhookSecret: row.shopify_webhook_secret || '',
+          clientId: row.shopify_client_id || '',
+          clientSecret: row.shopify_client_secret || '',
           adminAccessToken: row.shopify_admin_access_token || '',
+          tokenExpiresAt: row.shopify_token_expires_at || '',
           isConnected: Boolean(row.shopify_is_connected),
           lastSyncAt: row.shopify_last_sync_at || '',
           autoSync: Boolean(row.shopify_auto_sync),
@@ -261,12 +270,14 @@ export const neonStore = {
       await sql`
         INSERT INTO settings (
           id, user_id, company_name, owner_name, email, phone, currency,
-          shopify_shop_domain, shopify_webhook_secret, shopify_admin_access_token,
+          shopify_shop_domain, shopify_webhook_secret, shopify_client_id, shopify_client_secret,
+          shopify_admin_access_token, shopify_token_expires_at,
           shopify_is_connected, shopify_last_sync_at, shopify_auto_sync, updated_at
         ) VALUES (
           ${userId}, ${userId}, ${s.companyName || ''}, ${s.ownerName || ''}, ${s.email || ''},
           ${s.phone || ''}, ${s.currency || '$'}, ${s.shopify?.shopDomain || ''},
-          ${s.shopify?.webhookSecret || ''}, ${s.shopify?.adminAccessToken || ''},
+          ${s.shopify?.webhookSecret || ''}, ${s.shopify?.clientId || ''}, ${s.shopify?.clientSecret || ''},
+          ${s.shopify?.adminAccessToken || ''}, ${s.shopify?.tokenExpiresAt || ''},
           ${isConnected}, ${s.shopify?.lastSyncAt || ''}, ${autoSync}, ${now}
         )
         ON CONFLICT (id) DO UPDATE SET
@@ -276,27 +287,17 @@ export const neonStore = {
           email = COALESCE(NULLIF(EXCLUDED.email, ''), settings.email),
           phone = COALESCE(NULLIF(EXCLUDED.phone, ''), settings.phone),
           currency = COALESCE(NULLIF(EXCLUDED.currency, ''), settings.currency),
-          shopify_shop_domain = CASE
-            WHEN EXCLUDED.shopify_shop_domain <> '' THEN EXCLUDED.shopify_shop_domain
-            ELSE settings.shopify_shop_domain
-          END,
-          shopify_webhook_secret = CASE
-            WHEN EXCLUDED.shopify_webhook_secret <> '' THEN EXCLUDED.shopify_webhook_secret
-            ELSE settings.shopify_webhook_secret
-          END,
-          shopify_admin_access_token = CASE
-            WHEN EXCLUDED.shopify_admin_access_token <> '' THEN EXCLUDED.shopify_admin_access_token
-            ELSE settings.shopify_admin_access_token
-          END,
-          shopify_is_connected = CASE
-            WHEN EXCLUDED.shopify_is_connected = 1 THEN 1
-            ELSE settings.shopify_is_connected
-          END,
+          shopify_shop_domain = EXCLUDED.shopify_shop_domain,
+          shopify_webhook_secret = EXCLUDED.shopify_webhook_secret,
+          shopify_client_id = EXCLUDED.shopify_client_id,
+          shopify_client_secret = EXCLUDED.shopify_client_secret,
+          shopify_admin_access_token = EXCLUDED.shopify_admin_access_token,
+          shopify_token_expires_at = EXCLUDED.shopify_token_expires_at,
+          shopify_is_connected = EXCLUDED.shopify_is_connected,
           shopify_last_sync_at = COALESCE(NULLIF(EXCLUDED.shopify_last_sync_at, ''), settings.shopify_last_sync_at),
           shopify_auto_sync = EXCLUDED.shopify_auto_sync,
           updated_at = EXCLUDED.updated_at
       `;
-
     } catch (e) {
       console.error('Neon updateSettings error:', e);
     }

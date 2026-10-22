@@ -264,9 +264,69 @@ export function normalizeShopifyDomain(input: string): string {
 }
 
 /**
- * Call Shopify REST Admin API to test credentials
+ * Exchange Shopify Partner App Client ID & Secret for an Admin API Access Token
  */
-export async function testShopifyConnection(shopDomain: string, accessToken: string) {
+export async function exchangeClientCredentialsForToken(
+  shopDomain: string,
+  clientId?: string,
+  clientSecret?: string
+): Promise<{ success: boolean; accessToken?: string; expiresIn?: number; tokenExpiresAt?: string; error?: string }> {
+  const cleanDomain = normalizeShopifyDomain(shopDomain);
+  if (!cleanDomain) {
+    return { success: false, error: 'Invalid store domain.' };
+  }
+
+  const effectiveClientId = clientId?.trim() || process.env.SHOPIFY_CLIENT_ID || '';
+  const effectiveClientSecret = clientSecret?.trim() || process.env.SHOPIFY_CLIENT_SECRET || '';
+
+  if (!effectiveClientId || !effectiveClientSecret) {
+    return { success: false, error: 'Missing Shopify Client ID or Client Secret.' };
+  }
+
+  try {
+    const res = await fetch(`https://${cleanDomain}/admin/oauth/access_token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+      },
+      body: new URLSearchParams({
+        client_id: effectiveClientId,
+        client_secret: effectiveClientSecret,
+        grant_type: 'client_credentials',
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok && data.access_token) {
+      const expiresIn = Number(data.expires_in) || 86400;
+      const tokenExpiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+      return { success: true, accessToken: data.access_token, expiresIn, tokenExpiresAt };
+    }
+    return {
+      success: false,
+      error: data.error_description || data.error || 'Failed to exchange credentials for Shopify access token',
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Network error requesting Shopify access token',
+    };
+  }
+}
+
+/**
+ * Call Shopify REST Admin API to test credentials with automatic client credentials refresh support
+ */
+export async function testShopifyConnection(
+  shopDomain: string,
+  accessToken: string,
+  clientCredentials?: {
+    clientId?: string;
+    clientSecret?: string;
+    onTokenRefreshed?: (newToken: string, expiresAt: string) => Promise<void> | void;
+  }
+) {
   const cleanDomain = normalizeShopifyDomain(shopDomain);
   if (!cleanDomain) {
     return {
@@ -275,29 +335,60 @@ export async function testShopifyConnection(shopDomain: string, accessToken: str
     };
   }
 
-  const trimmedToken = (accessToken || '').trim();
+  let trimmedToken = (accessToken || '').trim();
+  const clientId = clientCredentials?.clientId?.trim() || process.env.SHOPIFY_CLIENT_ID || '';
+  const clientSecret = clientCredentials?.clientSecret?.trim() || process.env.SHOPIFY_CLIENT_SECRET || '';
+
+  // If token is missing but client credentials exist, attempt initial exchange
+  if (!trimmedToken && clientId && clientSecret) {
+    const exchange = await exchangeClientCredentialsForToken(cleanDomain, clientId, clientSecret);
+    if (exchange.success && exchange.accessToken) {
+      trimmedToken = exchange.accessToken;
+      if (clientCredentials?.onTokenRefreshed) {
+        await clientCredentials.onTokenRefreshed(exchange.accessToken, exchange.tokenExpiresAt || '');
+      }
+    }
+  }
+
   if (!trimmedToken) {
     return {
       success: false,
-      error: 'Admin API Access Token is empty. A valid token starting with "shpat_" is required to test and sync orders.',
+      error: 'Admin API Access Token or Shopify Client ID & Secret is required to test and sync orders.',
     };
   }
 
   const url = `https://${cleanDomain}/admin/api/2024-01/shop.json`;
 
   try {
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       headers: {
         'X-Shopify-Access-Token': trimmedToken,
         'Content-Type': 'application/json',
       },
     });
 
+    // If 401 (token expired/invalid) and client credentials exist, transparently refresh and retry!
+    if (res.status === 401 && clientId && clientSecret) {
+      const exchange = await exchangeClientCredentialsForToken(cleanDomain, clientId, clientSecret);
+      if (exchange.success && exchange.accessToken) {
+        trimmedToken = exchange.accessToken;
+        if (clientCredentials?.onTokenRefreshed) {
+          await clientCredentials.onTokenRefreshed(exchange.accessToken, exchange.tokenExpiresAt || '');
+        }
+        res = await fetch(url, {
+          headers: {
+            'X-Shopify-Access-Token': trimmedToken,
+            'Content-Type': 'application/json',
+          },
+        });
+      }
+    }
+
     if (!res.ok) {
       const errText = await res.text();
       let clearReason = '';
       if (res.status === 401) {
-        clearReason = 'Shopify rejected credentials (HTTP 401 Unauthorized): Invalid or expired Admin API Access Token. Ensure the token starts with "shpat_" and was generated with "read_orders" scope.';
+        clearReason = 'Shopify rejected credentials (HTTP 401 Unauthorized): Invalid or expired Admin API Access Token. Ensure the token starts with "shpat_" or "atkn_" and was generated with "read_orders" scope.';
       } else if (res.status === 403) {
         clearReason = 'Access forbidden (HTTP 403 Forbidden): Your custom app lacks permission. In Shopify Admin → Apps → Develop apps, grant the "read_orders" scope.';
       } else if (res.status === 404) {
@@ -311,7 +402,7 @@ export async function testShopifyConnection(shopDomain: string, accessToken: str
     }
 
     const data = await res.json();
-    return { success: true, shop: data.shop, domain: cleanDomain };
+    return { success: true, shop: data.shop, domain: cleanDomain, activeToken: trimmedToken };
   } catch (error: any) {
     return {
       success: false,

@@ -114,7 +114,10 @@ export interface Order {
 export interface ShopifyConfig {
   shopDomain: string; // e.g. your-store.myshopify.com
   webhookSecret: string; // shpss_...
-  adminAccessToken?: string; // shpat_...
+  clientId?: string;
+  clientSecret?: string;
+  adminAccessToken?: string; // shpat_... or atkn_...
+  tokenExpiresAt?: string;
   isConnected: boolean;
   lastSyncAt?: string;
   autoSync: boolean;

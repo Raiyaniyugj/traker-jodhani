@@ -8,6 +8,7 @@ import {
   Sliders,
   Users,
   Sun,
+  BarChart3,
   ExternalLink,
 } from 'lucide-react';
 
@@ -20,6 +21,7 @@ export default function Sidebar() {
     { name: 'Pipeline Management', href: '/pipeline', icon: Sliders },
     { name: 'Team', href: '/team', icon: Users },
     { name: 'Settings', href: '/settings', icon: Sun },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
   ];
 
   return (

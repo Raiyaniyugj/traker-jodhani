@@ -515,7 +515,7 @@ export default function AnalyticsPage() {
               <div className="text-2xl font-bold text-emerald-900 tracking-tight">
                 {dailyStats.highestDay
                   ? `${currencySymbol}${dailyStats.highestDay.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  : '—'}
+                  : `${currencySymbol}0.00`}
               </div>
               <p className="text-[11px] text-emerald-700/80 mt-1">
                 {dailyStats.highestDay
@@ -538,7 +538,7 @@ export default function AnalyticsPage() {
               <div className="text-2xl font-bold text-neutral-900 tracking-tight">
                 {dailyStats.lowestDay
                   ? `${currencySymbol}${dailyStats.lowestDay.revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  : '—'}
+                  : `${currencySymbol}0.00`}
               </div>
               <p className="text-[11px] text-neutral-400 mt-1">
                 {dailyStats.lowestDay
@@ -852,6 +852,32 @@ export default function AnalyticsPage() {
                                     fill="#10b981"
                                     opacity="0.2"
                                   />
+                                  {/* Floating value tag right above hovered point */}
+                                  <g>
+                                    <rect
+                                      x={hoveredPt.x - 36}
+                                      y={Math.max(hoveredPt.y - 32, 8)}
+                                      width="72"
+                                      height="19"
+                                      rx="6"
+                                      fill="#171717"
+                                      stroke="#38a169"
+                                      strokeWidth="1"
+                                    />
+                                    <text
+                                      x={hoveredPt.x}
+                                      y={Math.max(hoveredPt.y - 18, 22)}
+                                      textAnchor="middle"
+                                      fontSize="10"
+                                      fontWeight="700"
+                                      fill="#ffffff"
+                                      fontFamily="monospace"
+                                    >
+                                      {chartMetric === 'revenue'
+                                        ? `${currencySymbol}${Math.round(hoveredPt.val).toLocaleString()}`
+                                        : `${hoveredPt.val} orders`}
+                                    </text>
+                                  </g>
                                 </g>
                               )}
 

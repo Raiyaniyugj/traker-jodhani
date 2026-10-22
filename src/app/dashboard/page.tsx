@@ -289,7 +289,7 @@ export default function DashboardPage() {
                       $••••••••
                     </span>
                   ) : (
-                    `${metrics.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    `$${metrics.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                   )}
                 </p>
               </div>
@@ -314,7 +314,7 @@ export default function DashboardPage() {
                       $••••••••
                     </span>
                   ) : (
-                    `${metrics.totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    `$${metrics.totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                   )}
                 </p>
               </div>

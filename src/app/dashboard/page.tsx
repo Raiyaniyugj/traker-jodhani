@@ -283,15 +283,16 @@ export default function DashboardPage() {
                     {hideValues ? <EyeOff className="w-3.5 h-3.5 text-neutral-600" /> : <Eye className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />}
                   </button>
                 </div>
-                <p className="font-sans font-bold text-2xl text-neutral-900 mt-1 tracking-tight whitespace-nowrap">
+                <div className="font-sans font-bold text-2xl text-neutral-900 mt-1 tracking-tight whitespace-nowrap flex items-center">
+                  <span>$</span>
                   {hideValues ? (
-                    <span className="text-neutral-400 font-mono tracking-widest text-xl select-none">
-                      $••••••••
+                    <span className="text-neutral-400 font-mono tracking-widest text-xl select-none ml-1">
+                      ••••••••
                     </span>
                   ) : (
-                    `$${metrics.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    <span>{metrics.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   )}
-                </p>
+                </div>
               </div>
 
               {/* Total Profit Card */}
@@ -308,15 +309,16 @@ export default function DashboardPage() {
                     {hideValues ? <EyeOff className="w-3.5 h-3.5 text-neutral-600" /> : <Eye className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />}
                   </button>
                 </div>
-                <p className="font-sans font-bold text-2xl text-neutral-900 mt-1 tracking-tight whitespace-nowrap">
+                <div className="font-sans font-bold text-2xl text-neutral-900 mt-1 tracking-tight whitespace-nowrap flex items-center">
+                  <span>$</span>
                   {hideValues ? (
-                    <span className="text-neutral-400 font-mono tracking-widest text-xl select-none">
-                      $••••••••
+                    <span className="text-neutral-400 font-mono tracking-widest text-xl select-none ml-1">
+                      ••••••••
                     </span>
                   ) : (
-                    `$${metrics.totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    <span>{metrics.totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   )}
-                </p>
+                </div>
               </div>
 
               {/* Action Buttons: Hide Values / Hide Cards */}

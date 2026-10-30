@@ -1,7 +1,8 @@
 export type Role = 'Admin' | 'CAD Designer' | 'Manufacturer' | 'QC Manager';
 
 export type OrderPriority = 'Low' | 'Medium' | 'High';
-export type OrderStatus = 'Active' | 'On Hold' | 'Delivered' | 'Cancelled';
+export type OrderStatus = 'Active' | 'On Hold' | 'Delivered' | 'Cancelled' | 'Returned';
+export type ReturnStatus = 'None' | 'Return Requested' | 'Returned' | 'Partially Returned';
 
 export interface PipelineStage {
   id: string;
@@ -95,6 +96,11 @@ export interface Order {
   currentStageId: string;
   priority: OrderPriority;
   status: OrderStatus;
+  financialStatus?: 'paid' | 'partially_paid' | 'partially_refunded' | 'refunded' | 'voided' | 'pending';
+  returnStatus?: ReturnStatus;
+  refundedAmount?: number;
+  cancelledAt?: string;
+  cancelReason?: string;
   progressPercent: number;
   assignedTo?: string;
   dueDate?: string;

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Order, PipelineStage } from '@/lib/types';
-import { ChevronRight, ExternalLink, ArrowRight, Diamond, ZoomIn, X } from 'lucide-react';
+import { ChevronRight, ExternalLink, ArrowRight, Diamond, ZoomIn, X, RotateCcw } from 'lucide-react';
 
 interface TableViewProps {
   orders: Order[];
@@ -96,6 +96,14 @@ export default function TableView({ orders, stages, onOrderStageChange }: TableV
               const stageName = getStageName(order.currentStageId);
               const nextStage = getNextStage(order.currentStageId);
               const primaryItem = order.items[0];
+              const isReturned =
+                order.status === 'Returned' ||
+                order.financialStatus === 'refunded' ||
+                order.returnStatus === 'Returned';
+              const refundAmount =
+                order.refundedAmount !== undefined && order.refundedAmount > 0
+                  ? order.refundedAmount
+                  : order.total;
 
               return (
                 <tr key={order.id} className="hover:bg-neutral-50/70 transition">
@@ -141,6 +149,12 @@ export default function TableView({ orders, stages, onOrderStageChange }: TableV
                             <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                               Shopify
+                            </span>
+                          )}
+                          {isReturned && (
+                            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase bg-rose-50 text-rose-700 border border-rose-200">
+                              <RotateCcw className="w-2.5 h-2.5" />
+                              Returned
                             </span>
                           )}
                         </div>
@@ -203,8 +217,21 @@ export default function TableView({ orders, stages, onOrderStageChange }: TableV
                   </td>
 
                   {/* Total */}
-                  <td className="py-4 px-6 text-right font-mono font-medium text-neutral-900">
-                    ${order.total.toLocaleString()}
+                  <td className="py-4 px-6 text-right font-mono">
+                    {isReturned ? (
+                      <div>
+                        <span className="font-bold text-xs text-rose-600 block">
+                          Refunded ${refundAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                        <span className="text-[11px] text-neutral-400 line-through">
+                          ${order.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="font-medium text-neutral-900">
+                        ${order.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    )}
                   </td>
 
                   {/* Actions */}

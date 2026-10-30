@@ -53,6 +53,19 @@ export async function GET(req: NextRequest) {
     const activeOrders = orders.filter((o) => o.status === 'Active').length;
     const deliveredOrders = orders.filter((o) => o.status === 'Delivered').length;
 
+    // Return Orders & Refund Calculation
+    const returnedOrdersList = orders.filter(
+      (o) => o.status === 'Returned' || o.financialStatus === 'refunded' || o.returnStatus === 'Returned'
+    );
+    const returnedOrders = returnedOrdersList.length;
+    const returnedRevenue = returnedOrdersList.reduce(
+      (sum, o) => sum + (o.refundedAmount !== undefined && o.refundedAmount > 0 ? o.refundedAmount : (o.total || 0)),
+      0
+    );
+    const netRevenue = Math.max(0, totalRevenue - returnedRevenue);
+    const returnedProfit = returnedOrdersList.reduce((sum, o) => sum + (o.profit || 0), 0);
+    const netProfit = Math.max(0, totalProfit - returnedProfit);
+
     return NextResponse.json({
       orders,
       stages,
@@ -62,6 +75,10 @@ export async function GET(req: NextRequest) {
         totalProfit,
         activeOrders,
         deliveredOrders,
+        returnedOrders,
+        returnedRevenue,
+        netRevenue,
+        netProfit,
       },
     });
   } catch (error: any) {

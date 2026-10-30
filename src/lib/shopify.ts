@@ -165,6 +165,58 @@ export function parseShopifyOrderPayload(payload: any, userId?: string): Order {
 
   const firstStage = userId ? `stg_${userId}_1` : 'stage-1';
 
+  const financialStatus = (
+    payload.financial_status ||
+    payload.displayFinancialStatus ||
+    payload.display_financial_status ||
+    'paid'
+  ).toLowerCase();
+
+  const isRefunded = financialStatus === 'refunded';
+  const isPartiallyRefunded = financialStatus === 'partially_refunded';
+  const hasRefunds = Array.isArray(payload.refunds) && payload.refunds.length > 0;
+  const isCancelled = Boolean(payload.cancelled_at || payload.cancelledAt);
+  const rawReturnStatus = payload.return_status || payload.returnStatus || '';
+  const isReturned =
+    isRefunded ||
+    rawReturnStatus === 'RETURNED' ||
+    rawReturnStatus === 'RETURN_REQUESTED' ||
+    (hasRefunds && !isPartiallyRefunded);
+
+  // Calculate refunded amount
+  let refundedAmount = 0;
+  if (payload.total_refunded) {
+    refundedAmount = parseFloat(payload.total_refunded) || 0;
+  } else if (payload.totalRefundedSet?.shopMoney?.amount) {
+    refundedAmount = parseFloat(payload.totalRefundedSet.shopMoney.amount) || 0;
+  } else if (hasRefunds) {
+    refundedAmount = payload.refunds.reduce((sum: number, ref: any) => {
+      const txSum = (ref.transactions || []).reduce(
+        (tSum: number, tx: any) => tSum + parseFloat(tx.amount || 0),
+        0
+      );
+      return sum + txSum;
+    }, 0);
+  }
+  if (refundedAmount === 0 && (isRefunded || isReturned)) {
+    refundedAmount = total;
+  }
+
+  let finalStatus: 'Active' | 'On Hold' | 'Delivered' | 'Cancelled' | 'Returned' = 'Active';
+  if (isCancelled) {
+    finalStatus = 'Cancelled';
+  } else if (isReturned || isRefunded) {
+    finalStatus = 'Returned';
+  }
+
+  const returnStatusVal = (isReturned || isRefunded)
+    ? 'Returned'
+    : isPartiallyRefunded
+    ? 'Partially Returned'
+    : rawReturnStatus === 'RETURN_REQUESTED'
+    ? 'Return Requested'
+    : 'None';
+
   return {
     id: `ord-shopify-${shopifyOrderId || Date.now()}`,
     orderNumber,
@@ -196,11 +248,18 @@ export function parseShopifyOrderPayload(payload: any, userId?: string): Order {
     profit,
     currentStageId: firstStage,
     priority: total > 2000 ? 'High' : 'Medium',
-    status: 'Active',
-    progressPercent: 11,
+    status: finalStatus,
+    financialStatus: financialStatus as any,
+    returnStatus: returnStatusVal,
+    refundedAmount,
+    cancelledAt: payload.cancelled_at || payload.cancelledAt || undefined,
+    cancelReason: payload.cancel_reason || payload.cancelReason || undefined,
+    progressPercent: finalStatus === 'Returned' || finalStatus === 'Cancelled' ? 100 : 11,
     dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     notesFromCustomer: payload.note || 'No notes from customer.',
-    internalNotes: `Auto-imported from Shopify store. Ready for CAD design.`,
+    internalNotes: isReturned || isRefunded
+      ? `Imported from Shopify (RETURNED / REFUNDED). Refunded: $${refundedAmount.toFixed(2)}.`
+      : `Auto-imported from Shopify store. Ready for CAD design.`,
     customerTrackingToken: `tr_${Math.random().toString(36).substring(2, 10)}`,
     gallery: galleryItems,
     comments: [
@@ -208,14 +267,18 @@ export function parseShopifyOrderPayload(payload: any, userId?: string): Order {
         id: `c-${Date.now()}`,
         author: 'Shopify System',
         role: 'Admin',
-        text: `Order ${orderNumber} received from Shopify. Customer: ${customer.name}. Paid: $${total}.`,
+        text: isReturned || isRefunded
+          ? `Order ${orderNumber} is RETURNED / REFUNDED in Shopify ($${refundedAmount.toFixed(2)} refunded).`
+          : `Order ${orderNumber} received from Shopify. Customer: ${customer.name}. Paid: $${total}.`,
         createdAt: new Date().toISOString(),
       }
     ],
     activity: [
       {
         id: `act-${Date.now()}`,
-        description: `Order ${orderNumber} imported into New Orders via Shopify Webhook`,
+        description: isReturned || isRefunded
+          ? `Order ${orderNumber} marked as Returned/Refunded from Shopify ($${refundedAmount.toFixed(2)})`
+          : `Order ${orderNumber} imported into New Orders via Shopify Webhook`,
         timestamp: new Date().toISOString(),
         actor: 'Shopify Webhook',
       }
@@ -442,7 +505,12 @@ export async function fetchShopifyOrders(shopDomain: string, accessToken: string
             name
             createdAt
             note
+            cancelledAt
+            cancelReason
+            displayFinancialStatus
+            returnStatus
             totalPriceSet { shopMoney { amount currencyCode } }
+            totalRefundedSet { shopMoney { amount currencyCode } }
             subtotalPriceSet { shopMoney { amount } }
             totalShippingPriceSet { shopMoney { amount } }
             customer { firstName lastName email phone }
@@ -524,6 +592,11 @@ export async function fetchShopifyOrders(shopDomain: string, accessToken: string
           order_number: node.name?.replace('#', '') || rawId,
           created_at: node.createdAt,
           note: node.note || '',
+          cancelled_at: node.cancelledAt,
+          cancel_reason: node.cancelReason,
+          financial_status: (node.displayFinancialStatus || '').toLowerCase(),
+          return_status: node.returnStatus,
+          total_refunded: node.totalRefundedSet?.shopMoney?.amount || '0',
           total_price: node.totalPriceSet?.shopMoney?.amount || '0',
           subtotal_price: node.subtotalPriceSet?.shopMoney?.amount || '0',
           total_shipping_price: node.totalShippingPriceSet?.shopMoney?.amount || '0',

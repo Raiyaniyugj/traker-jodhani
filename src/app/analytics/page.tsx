@@ -29,6 +29,7 @@ import {
   Flame,
   Trophy,
   Repeat,
+  RotateCcw,
 } from 'lucide-react';
 
 type DatePreset = 'all' | 'today' | '7days' | '30days' | 'this_month' | '3months';
@@ -241,6 +242,28 @@ export default function AnalyticsPage() {
   const totalOrdersCount = filteredOrders.length;
   const averageOrderValue = totalOrdersCount > 0 ? totalRevenue / totalOrdersCount : 0;
   const profitMarginPercent = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+  // Shopify Returns and Refunds Calculation
+  const returnStats = useMemo(() => {
+    const returnedOrders = filteredOrders.filter(
+      (o) => o.status === 'Returned' || o.financialStatus === 'refunded' || o.returnStatus === 'Returned'
+    );
+    const count = returnedOrders.length;
+    const refundedRevenue = returnedOrders.reduce(
+      (sum, o) => sum + (o.refundedAmount !== undefined && o.refundedAmount > 0 ? o.refundedAmount : (o.total || 0)),
+      0
+    );
+    const netRevenue = Math.max(0, totalRevenue - refundedRevenue);
+    const returnRate = filteredOrders.length > 0 ? (count / filteredOrders.length) * 100 : 0;
+
+    return {
+      count,
+      refundedRevenue,
+      netRevenue,
+      returnRate,
+      orders: returnedOrders,
+    };
+  }, [filteredOrders, totalRevenue]);
 
   // Product category breakdown
   const categoryBreakdown = useMemo(() => {
@@ -608,7 +631,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* TOP EXECUTIVE METRIC CARDS */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Total Sales */}
             <div className="bg-white border border-neutral-200/90 rounded-xl p-5 shadow-2xs relative overflow-hidden">
               <div className="flex items-center justify-between mb-2">
@@ -622,7 +645,13 @@ export default function AnalyticsPage() {
                 {totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <p className="text-[11px] text-neutral-400 mt-1">
-                Across {totalOrdersCount} orders in selected period
+                {returnStats.refundedRevenue > 0 ? (
+                  <>
+                    Net: <strong className="text-neutral-800">{currencySymbol}{returnStats.netRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                  </>
+                ) : (
+                  `Across ${totalOrdersCount} orders in selected period`
+                )}
               </p>
             </div>
 
@@ -640,6 +669,26 @@ export default function AnalyticsPage() {
               <p className="text-[11px] text-neutral-400 mt-1">
                 AOV: {currencySymbol}
                 {averageOrderValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} per order
+              </p>
+            </div>
+
+            {/* Shopify Returns & Refunds */}
+            <div className="bg-white border border-rose-200 rounded-xl p-5 shadow-2xs relative overflow-hidden bg-gradient-to-br from-white via-white to-rose-50/40">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-medium text-rose-700 flex items-center gap-1">
+                  <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                  Returned Money
+                </span>
+                <span className="text-[10px] bg-rose-100 text-rose-800 font-semibold px-2 py-0.5 rounded-full border border-rose-300">
+                  {returnStats.count} ORDERS
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-rose-600 tracking-tight">
+                -{currencySymbol}
+                {returnStats.refundedRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <p className="text-[11px] text-neutral-500 mt-1">
+                {returnStats.returnRate.toFixed(1)}% store return rate
               </p>
             </div>
 
@@ -1739,24 +1788,74 @@ export default function AnalyticsPage() {
                             {itemSummary}
                           </td>
                           <td className="py-3 px-4">
-                            <span
-                              className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
-                                ord.status === 'Delivered'
-                                  ? 'bg-neutral-100 text-neutral-700'
-                                  : ord.status === 'Cancelled'
-                                  ? 'bg-red-50 text-red-700 border border-red-200'
-                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              }`}
-                            >
-                              {ord.status}
-                            </span>
+                            {(() => {
+                              const isReturned =
+                                ord.status === 'Returned' ||
+                                ord.financialStatus === 'refunded' ||
+                                ord.returnStatus === 'Returned';
+                              if (isReturned) {
+                                return (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                    <RotateCcw className="w-2.5 h-2.5" />
+                                    Returned
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span
+                                  className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${
+                                    ord.status === 'Delivered'
+                                      ? 'bg-neutral-100 text-neutral-700'
+                                      : ord.status === 'Cancelled'
+                                      ? 'bg-red-50 text-red-700 border border-red-200'
+                                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  }`}
+                                >
+                                  {ord.status}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td className="py-3 px-4 text-right font-semibold text-neutral-900 font-mono">
-                            {currencySymbol}
-                            {(ord.total || 0).toLocaleString('en-US', {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
+                            {(() => {
+                              const isReturned =
+                                ord.status === 'Returned' ||
+                                ord.financialStatus === 'refunded' ||
+                                ord.returnStatus === 'Returned';
+                              const refundAmt =
+                                ord.refundedAmount !== undefined && ord.refundedAmount > 0
+                                  ? ord.refundedAmount
+                                  : ord.total || 0;
+                              if (isReturned) {
+                                return (
+                                  <div>
+                                    <span className="text-rose-600 block">
+                                      -{currencySymbol}
+                                      {refundAmt.toLocaleString('en-US', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}
+                                    </span>
+                                    <span className="text-[10px] text-neutral-400 line-through font-normal">
+                                      {currencySymbol}
+                                      {(ord.total || 0).toLocaleString('en-US', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}
+                                    </span>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <span>
+                                  {currencySymbol}
+                                  {(ord.total || 0).toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td className="py-3 px-4 text-center">
                             <Link

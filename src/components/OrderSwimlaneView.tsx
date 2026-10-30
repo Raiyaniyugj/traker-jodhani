@@ -15,6 +15,7 @@ import {
   Layers,
   ZoomIn,
   X,
+  RotateCcw,
 } from 'lucide-react';
 
 interface OrderSwimlaneViewProps {
@@ -95,6 +96,11 @@ export default function OrderSwimlaneView({
     }
   };
 
+  const isOrderReturned = (o: Order) =>
+    o.status === 'Returned' || o.financialStatus === 'refunded' || o.returnStatus === 'Returned';
+
+  const returnedOrdersCount = orders.filter(isOrderReturned).length;
+
   // Filter orders
   const filteredOrders = orders.filter((order) => {
     const matchesSearch =
@@ -103,7 +109,11 @@ export default function OrderSwimlaneView({
       (order.items[0]?.title || '').toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesStage =
-      selectedStageFilter === 'all' || order.currentStageId === selectedStageFilter;
+      selectedStageFilter === 'all'
+        ? true
+        : selectedStageFilter === 'returned'
+        ? isOrderReturned(order)
+        : order.currentStageId === selectedStageFilter;
 
     return matchesSearch && matchesStage;
   });
@@ -140,7 +150,7 @@ export default function OrderSwimlaneView({
           />
         </div>
 
-        {/* Stage Filter Pills */}
+        {/* Stage & Returned Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           <button
             onClick={() => setSelectedStageFilter('all')}
@@ -152,6 +162,19 @@ export default function OrderSwimlaneView({
           >
             All Orders ({orders.length})
           </button>
+          {returnedOrdersCount > 0 && (
+            <button
+              onClick={() => setSelectedStageFilter('returned')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-lg font-medium transition shrink-0 ${
+                selectedStageFilter === 'returned'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
+              }`}
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Returned ({returnedOrdersCount})</span>
+            </button>
+          )}
           {sortedStages.map((stage) => {
             const count = orders.filter((o) => o.currentStageId === stage.id).length;
             if (count === 0 && selectedStageFilter !== stage.id) return null;
@@ -187,6 +210,14 @@ export default function OrderSwimlaneView({
             const nextStage = getNextStage(order.currentStageId);
             const primaryItem = order.items[0];
             const isUpdating = updatingOrderId === order.id;
+            const isReturned =
+              order.status === 'Returned' ||
+              order.financialStatus === 'refunded' ||
+              order.returnStatus === 'Returned';
+            const refundAmount =
+              order.refundedAmount !== undefined && order.refundedAmount > 0
+                ? order.refundedAmount
+                : order.total;
 
             // Compute progress percentage
             const progress =
@@ -241,6 +272,12 @@ export default function OrderSwimlaneView({
                                 Shopify
                               </span>
                             )}
+                            {isReturned && (
+                              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase bg-rose-50 text-rose-700 border border-rose-200">
+                                <RotateCcw className="w-2.5 h-2.5" />
+                                Returned
+                              </span>
+                            )}
                           </div>
                           {getPriorityBadge(order.priority)}
                         </div>
@@ -274,9 +311,22 @@ export default function OrderSwimlaneView({
 
                     {/* Price & Links */}
                     <div className="flex items-center justify-between pt-1">
-                      <span className="font-mono font-bold text-sm text-neutral-900">
-                        ${order.total.toLocaleString()}
-                      </span>
+                      <div>
+                        {isReturned ? (
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="font-mono font-bold text-sm text-rose-600">
+                              Refunded ${refundAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                            <span className="font-mono text-xs text-neutral-400 line-through">
+                              ${order.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="font-mono font-bold text-sm text-neutral-900">
+                            ${order.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </div>
 
                       <div className="flex items-center gap-2 text-xs">
                         <Link

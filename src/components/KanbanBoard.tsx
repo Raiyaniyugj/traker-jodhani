@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Order, PipelineStage } from '@/lib/types';
-import { ArrowRight, ChevronRight, Clock, Diamond, ShieldCheck, ZoomIn, X, ExternalLink } from 'lucide-react';
+import { ArrowRight, ChevronRight, Clock, Diamond, ShieldCheck, ZoomIn, X, ExternalLink, RotateCcw } from 'lucide-react';
 
 interface KanbanBoardProps {
   stages: PipelineStage[];
@@ -131,6 +131,14 @@ export default function KanbanBoard({
                   stageOrders.map((order) => {
                     const firstItem = order.items[0];
                     const isShopify = order.source === 'shopify' || Boolean(order.shopifyOrderId);
+                    const isReturned =
+                      order.status === 'Returned' ||
+                      order.financialStatus === 'refunded' ||
+                      order.returnStatus === 'Returned';
+                    const refundAmount =
+                      order.refundedAmount !== undefined && order.refundedAmount > 0
+                        ? order.refundedAmount
+                        : order.total;
 
                     return (
                       <div
@@ -152,6 +160,15 @@ export default function KanbanBoard({
                               >
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                                 Shopify
+                              </span>
+                            )}
+                            {isReturned && (
+                              <span
+                                className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase bg-rose-50 text-rose-700 border border-rose-200 shrink-0"
+                                title="Order returned / refunded"
+                              >
+                                <RotateCcw className="w-2.5 h-2.5" />
+                                Returned
                               </span>
                             )}
                           </div>
@@ -204,9 +221,20 @@ export default function KanbanBoard({
 
 
                         <div className="mt-3 flex items-center justify-between text-xs pt-2.5 border-t border-neutral-100">
-                          <span className="font-semibold text-neutral-900 font-mono">
-                            ${order.total.toLocaleString()}
-                          </span>
+                          {isReturned ? (
+                            <div className="flex items-baseline gap-1.5 font-mono">
+                              <span className="font-bold text-xs text-rose-600">
+                                Refunded ${refundAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                              <span className="text-[10px] text-neutral-400 line-through">
+                                ${order.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="font-semibold text-neutral-900 font-mono">
+                              ${order.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          )}
 
                           {order.dueDate && (
                             <span className="text-[11px] text-neutral-400 flex items-center gap-1">

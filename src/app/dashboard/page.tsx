@@ -20,6 +20,7 @@ import {
   X,
   Eye,
   EyeOff,
+  RotateCcw,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Order, PipelineStage, WorkspaceSettings, ShopifyConnectionStatus } from '@/lib/types';
@@ -31,7 +32,16 @@ export default function DashboardPage() {
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
   const [shopifyStatus, setShopifyStatus] = useState<ShopifyConnectionStatus | null>(null);
-  const [metrics, setMetrics] = useState({ totalRevenue: 0, totalProfit: 0 });
+  const [metrics, setMetrics] = useState({
+    totalRevenue: 0,
+    totalProfit: 0,
+    activeOrders: 0,
+    deliveredOrders: 0,
+    returnedOrders: 0,
+    returnedRevenue: 0,
+    netRevenue: 0,
+    netProfit: 0,
+  });
   const [hideValues, setHideValues] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -318,6 +328,11 @@ export default function DashboardPage() {
                     <span>{metrics.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   )}
                 </div>
+                {metrics.returnedRevenue > 0 && !hideValues && (
+                  <p className="text-[11px] text-neutral-500 mt-1">
+                    Net: <span className="font-semibold text-neutral-800">${metrics.netRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> (after returns)
+                  </p>
+                )}
               </div>
 
               {/* Total Profit Card */}
@@ -344,6 +359,54 @@ export default function DashboardPage() {
                     <span>{metrics.totalProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   )}
                 </div>
+                {metrics.returnedRevenue > 0 && !hideValues && (
+                  <p className="text-[11px] text-neutral-500 mt-1">
+                    Net: <span className="font-semibold text-neutral-800">${metrics.netProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Returned Money Card */}
+              <div className="group bg-white border border-rose-200 rounded-xl px-5 py-4 min-w-[220px] shadow-2xs relative bg-gradient-to-br from-white via-white to-rose-50/40">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-[11px] font-semibold tracking-wider text-rose-600 uppercase">
+                      RETURNED MONEY
+                    </p>
+                    {metrics.returnedOrders > 0 && (
+                      <span className="text-[10px] bg-rose-100 text-rose-700 font-semibold px-1.5 py-0.2 rounded-full border border-rose-200">
+                        {metrics.returnedOrders}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={toggleHideValues}
+                    title={hideValues ? 'Show return figures' : 'Hide return figures'}
+                    className="text-neutral-400 hover:text-neutral-800 transition p-0.5 rounded cursor-pointer"
+                  >
+                    {hideValues ? <EyeOff className="w-3.5 h-3.5 text-neutral-600" /> : <Eye className="w-3.5 h-3.5 opacity-60 group-hover:opacity-100" />}
+                  </button>
+                </div>
+                <div className="font-sans font-bold text-2xl text-rose-600 mt-1 tracking-tight whitespace-nowrap flex items-center">
+                  <span>-$</span>
+                  {hideValues ? (
+                    <span className="text-neutral-400 font-mono tracking-widest text-xl select-none ml-1">
+                      ••••••••
+                    </span>
+                  ) : (
+                    <span>{metrics.returnedRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  )}
+                </div>
+                <p className="text-[11px] text-neutral-500 mt-1 flex items-center gap-1">
+                  <RotateCcw className="w-3 h-3 text-rose-500 shrink-0" />
+                  <span>
+                    {metrics.returnedOrders} Shopify {metrics.returnedOrders === 1 ? 'return' : 'returns'} (
+                    {metrics.totalRevenue > 0
+                      ? `${((metrics.returnedRevenue / metrics.totalRevenue) * 100).toFixed(1)}%`
+                      : '0%'}
+                    )
+                  </span>
+                </p>
               </div>
 
               {/* Action Buttons: Hide Values / Hide Cards */}

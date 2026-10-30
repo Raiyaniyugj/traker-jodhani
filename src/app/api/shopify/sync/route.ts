@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/store';
 import { getD1Database, d1Store } from '@/lib/d1';
 import { fetchShopifyOrders, parseShopifyOrderPayload, normalizeShopifyDomain, enrichOrderWithShopifyImages, exchangeClientCredentialsForToken } from '@/lib/shopify';
-
+import { Order } from '@/lib/types';
 import { getSessionUser } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
@@ -132,20 +132,45 @@ export async function POST(req: NextRequest) {
         }
         importedCount++;
       } else {
-        // If existing order was missing image, enrich and update it
+        // Sync return, refund, and image status for existing orders
+        const parsed = parseShopifyOrderPayload(rawOrder, workspaceId);
+        const updates: Partial<Order> = {};
+
+        if (parsed.status !== duplicate.status) {
+          updates.status = parsed.status;
+        }
+        if (parsed.financialStatus && parsed.financialStatus !== duplicate.financialStatus) {
+          updates.financialStatus = parsed.financialStatus;
+        }
+        if (parsed.returnStatus && parsed.returnStatus !== duplicate.returnStatus) {
+          updates.returnStatus = parsed.returnStatus;
+        }
+        if (parsed.refundedAmount !== undefined && parsed.refundedAmount !== duplicate.refundedAmount) {
+          updates.refundedAmount = parsed.refundedAmount;
+        }
+        if (parsed.cancelledAt && parsed.cancelledAt !== duplicate.cancelledAt) {
+          updates.cancelledAt = parsed.cancelledAt;
+        }
+        if (parsed.cancelReason && parsed.cancelReason !== duplicate.cancelReason) {
+          updates.cancelReason = parsed.cancelReason;
+        }
+
+        // Check if missing product image
         const missingImage = !duplicate.items?.[0]?.imageUrl;
         if (missingImage) {
-          let enriched = parseShopifyOrderPayload(rawOrder, workspaceId);
-          enriched = await enrichOrderWithShopifyImages(enriched, cleanDomain, adminAccessToken);
+          let enriched = await enrichOrderWithShopifyImages({ ...duplicate, ...updates }, cleanDomain, adminAccessToken);
           if (enriched.items?.[0]?.imageUrl) {
-            const updated = db.updateOrder(workspaceId, duplicate.id, {
-              items: enriched.items,
-            });
-            if (d1 && updated) await d1Store.saveOrder(d1, { ...updated, userId: workspaceId });
-            importedCount++;
+            updates.items = enriched.items;
           }
         }
 
+        if (Object.keys(updates).length > 0) {
+          const updated = db.updateOrder(workspaceId, duplicate.id, updates);
+          if (d1) {
+            await d1Store.saveOrder(d1, { ...(updated || { ...duplicate, ...updates }), userId: workspaceId });
+          }
+          importedCount++;
+        }
       }
     }
 

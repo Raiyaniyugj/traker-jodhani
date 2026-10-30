@@ -26,6 +26,12 @@ import {
   LineChart,
   Award,
   AlertCircle,
+  Combine,
+  Plus,
+  ArrowRight,
+  Layers,
+  Flame,
+  Package,
 } from 'lucide-react';
 
 type DatePreset = 'all' | 'today' | '7days' | '30days' | 'this_month' | '3months';
@@ -47,6 +53,11 @@ export default function AnalyticsPage() {
   const [chartMetric, setChartMetric] = useState<'revenue' | 'orders'>('revenue');
   const [chartType, setChartType] = useState<'line' | 'bar'>('line');
   const [hoveredDay, setHoveredDay] = useState<any | null>(null);
+
+  // Frequently Bought Together / Product Affinity state
+  const [selectedAffinityProduct, setSelectedAffinityProduct] = useState<string>('');
+  const [affinitySearch, setAffinitySearch] = useState('');
+  const [affinityTab, setAffinityTab] = useState<'lookup' | 'top_pairs'>('lookup');
 
   // Table search
   const [tableSearch, setTableSearch] = useState('');
@@ -279,6 +290,207 @@ export default function AnalyticsPage() {
       percent: totalOrdersCount > 0 ? ((map[s.id] || 0) / totalOrdersCount) * 100 : 0,
     }));
   }, [filteredOrders, stages, totalOrdersCount]);
+
+  // Frequently Bought Together / Product Affinity data ("Which product sells most with...")
+  const productAffinityData = useMemo(() => {
+    interface ProductMeta {
+      title: string;
+      imageUrl?: string;
+      productType?: string;
+      price?: number;
+      totalOrders: number;
+    }
+
+    interface CompanionEntry {
+      title: string;
+      count: number;
+      orders: string[];
+      productMeta?: ProductMeta;
+      coRate: number;
+    }
+
+    interface PairEntry {
+      id: string;
+      titleA: string;
+      titleB: string;
+      productA?: ProductMeta;
+      productB?: ProductMeta;
+      count: number;
+      orders: string[];
+      combinedRevenue: number;
+    }
+
+    // 1. Build catalog and count order occurrences
+    const catalog: Record<string, ProductMeta> = {};
+    const orderProductSets: { orderNumber: string; productTitles: string[]; total: number }[] = [];
+
+    filteredOrders.forEach((o) => {
+      const distinctTitles = new Set<string>();
+      (o.items || []).forEach((item) => {
+        const title = (item.title || '').trim();
+        if (!title) return;
+        distinctTitles.add(title);
+
+        if (!catalog[title]) {
+          catalog[title] = {
+            title,
+            imageUrl: item.imageUrl,
+            productType: item.productType || 'Fine Jewelry',
+            price: item.price || 0,
+            totalOrders: 0,
+          };
+        } else {
+          if (!catalog[title].imageUrl && item.imageUrl) {
+            catalog[title].imageUrl = item.imageUrl;
+          }
+          if (item.price && !catalog[title].price) {
+            catalog[title].price = item.price;
+          }
+        }
+      });
+
+      distinctTitles.forEach((t) => {
+        if (catalog[t]) {
+          catalog[t].totalOrders += 1;
+        }
+      });
+
+      orderProductSets.push({
+        orderNumber: o.orderNumber,
+        productTitles: Array.from(distinctTitles),
+        total: o.total || 0,
+      });
+    });
+
+    // 2. Co-purchase mapping: product -> companion -> count & order numbers
+    const coPurchases: Record<string, Record<string, { count: number; orders: string[] }>> = {};
+    const pairMap: Record<string, { titleA: string; titleB: string; count: number; orders: string[] }> = {};
+
+    let multiItemOrdersCount = 0;
+
+    orderProductSets.forEach((order) => {
+      const titles = order.productTitles;
+      if (titles.length >= 2) {
+        multiItemOrdersCount += 1;
+
+        // Populate companion map
+        for (let i = 0; i < titles.length; i++) {
+          const tA = titles[i];
+          if (!coPurchases[tA]) coPurchases[tA] = {};
+
+          for (let j = 0; j < titles.length; j++) {
+            if (i === j) continue;
+            const tB = titles[j];
+            if (!coPurchases[tA][tB]) {
+              coPurchases[tA][tB] = { count: 0, orders: [] };
+            }
+            coPurchases[tA][tB].count += 1;
+            coPurchases[tA][tB].orders.push(order.orderNumber);
+          }
+        }
+
+        // Populate unique pairs map (sorted alphabetically)
+        for (let i = 0; i < titles.length; i++) {
+          for (let j = i + 1; j < titles.length; j++) {
+            const [tA, tB] = [titles[i], titles[j]].sort();
+            const pairKey = `${tA}:::${tB}`;
+            if (!pairMap[pairKey]) {
+              pairMap[pairKey] = { titleA: tA, titleB: tB, count: 0, orders: [] };
+            }
+            pairMap[pairKey].count += 1;
+            pairMap[pairKey].orders.push(order.orderNumber);
+          }
+        }
+      }
+    });
+
+    // 3. Convert pairs to sorted array
+    const pairs: PairEntry[] = Object.entries(pairMap).map(([id, p]) => {
+      const metaA = catalog[p.titleA];
+      const metaB = catalog[p.titleB];
+      const revA = metaA?.price || 0;
+      const revB = metaB?.price || 0;
+      return {
+        id,
+        titleA: p.titleA,
+        titleB: p.titleB,
+        productA: metaA,
+        productB: metaB,
+        count: p.count,
+        orders: p.orders,
+        combinedRevenue: (revA + revB) * p.count,
+      };
+    });
+
+    pairs.sort((a, b) => b.count - a.count || b.combinedRevenue - a.combinedRevenue);
+
+    // 4. Build per-product companion lists
+    const productAffinityLookup: Record<
+      string,
+      {
+        product: ProductMeta;
+        topCompanion: CompanionEntry | null;
+        companions: CompanionEntry[];
+        totalCoOrders: number;
+      }
+    > = {};
+
+    Object.keys(catalog).forEach((title) => {
+      const companionsObj = coPurchases[title] || {};
+      const companionsList: CompanionEntry[] = Object.entries(companionsObj).map(([cTitle, data]) => ({
+        title: cTitle,
+        count: data.count,
+        orders: data.orders,
+        productMeta: catalog[cTitle],
+        coRate: catalog[title].totalOrders > 0 ? (data.count / catalog[title].totalOrders) * 100 : 0,
+      }));
+
+      companionsList.sort((a, b) => b.count - a.count);
+
+      const totalCoOrders = companionsList.reduce((sum, c) => sum + c.count, 0);
+
+      productAffinityLookup[title] = {
+        product: catalog[title],
+        topCompanion: companionsList[0] || null,
+        companions: companionsList,
+        totalCoOrders,
+      };
+    });
+
+    // Product list sorted: products with companions come first, then alphabetical
+    const allProductsList = Object.values(catalog).sort((a, b) => {
+      const aCo = productAffinityLookup[a.title]?.companions.length || 0;
+      const bCo = productAffinityLookup[b.title]?.companions.length || 0;
+      if (bCo !== aCo) return bCo - aCo;
+      return a.title.localeCompare(b.title);
+    });
+
+    // Determine recommended default product
+    const topPairProduct = pairs.length > 0 ? pairs[0].titleA : allProductsList[0]?.title || '';
+
+    return {
+      catalog,
+      pairs,
+      productAffinityLookup,
+      allProductsList,
+      topPairProduct,
+      multiItemOrdersCount,
+      totalOrdersCount: filteredOrders.length,
+      multiItemRate:
+        filteredOrders.length > 0 ? (multiItemOrdersCount / filteredOrders.length) * 100 : 0,
+    };
+  }, [filteredOrders]);
+
+  const filteredAffinityProductsList = useMemo(() => {
+    const list = productAffinityData.allProductsList;
+    if (!affinitySearch.trim()) return list;
+    const q = affinitySearch.toLowerCase().trim();
+    return list.filter((p) => p.title.toLowerCase().includes(q));
+  }, [productAffinityData.allProductsList, affinitySearch]);
+
+  const activeAffinityProductTitle =
+    selectedAffinityProduct || productAffinityData.topPairProduct || (productAffinityData.allProductsList[0]?.title ?? '');
+  const activeAffinity = productAffinityData.productAffinityLookup[activeAffinityProductTitle];
 
   // Orders matching table search
   const searchedOrders = useMemo(() => {
@@ -1204,6 +1416,516 @@ export default function AnalyticsPage() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* FREQUENTLY BOUGHT TOGETHER / WHICH PRODUCT SELLS MOST WITH... */}
+          <div className="bg-white border border-neutral-200/90 rounded-xl p-6 shadow-2xs space-y-6">
+            {/* Section Header with Mode Tabs */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-neutral-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200/60 inline-flex">
+                    <Combine className="w-4 h-4" />
+                  </span>
+                  <h3 className="font-semibold text-neutral-900 text-base">
+                    Frequently Bought Together (Cross-Selling Affinity)
+                  </h3>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-600 border border-neutral-200">
+                    Product Co-Sales
+                  </span>
+                </div>
+                <p className="text-xs text-neutral-500 mt-1">
+                  Discover which products sell most together, customer basket combinations, and optimal bundle pairings
+                </p>
+              </div>
+
+              {/* View Switcher Tabs */}
+              <div className="flex items-center bg-neutral-100 p-1 rounded-lg border border-neutral-200/60 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setAffinityTab('lookup')}
+                  className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition ${
+                    affinityTab === 'lookup'
+                      ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
+                      : 'text-neutral-600 hover:text-black'
+                  }`}
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Which Product Sells Most With...</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAffinityTab('top_pairs')}
+                  className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-medium transition ${
+                    affinityTab === 'top_pairs'
+                      ? 'bg-white text-neutral-900 shadow-2xs font-semibold'
+                      : 'text-neutral-600 hover:text-black'
+                  }`}
+                >
+                  <Flame className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Top Product Pairs ({productAffinityData.pairs.length})</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Metrics Bar */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-neutral-50/70 p-3.5 rounded-xl border border-neutral-200/60">
+              <div>
+                <span className="text-[11px] text-neutral-500 block">Multi-Item Orders</span>
+                <span className="text-base font-bold text-neutral-900 font-mono">
+                  {productAffinityData.multiItemOrdersCount}
+                  <span className="text-xs font-normal text-neutral-400 ml-1">
+                    ({productAffinityData.multiItemRate.toFixed(1)}% of orders)
+                  </span>
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-neutral-500 block">Top Co-Selling Product</span>
+                <span
+                  className="text-xs font-semibold text-neutral-900 truncate block mt-0.5"
+                  title={productAffinityData.topPairProduct || 'None'}
+                >
+                  {productAffinityData.topPairProduct || '—'}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-neutral-500 block">Total Unique Combinations</span>
+                <span className="text-base font-bold text-neutral-900 font-mono">
+                  {productAffinityData.pairs.length}
+                  <span className="text-xs font-normal text-neutral-400 ml-1">pairs</span>
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-neutral-500 block">Top Bundle Value</span>
+                <span className="text-base font-bold text-emerald-800 font-mono">
+                  {currencySymbol}
+                  {(productAffinityData.pairs[0]?.combinedRevenue || 0).toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+            </div>
+
+            {/* TAB 1: PRODUCT LOOKUP (WHICH PRODUCT SELLS MOST WITH...) */}
+            {affinityTab === 'lookup' && (
+              <div className="space-y-5">
+                {/* Product Search & Dropdown Selection */}
+                <div className="bg-neutral-50/50 p-4 rounded-xl border border-neutral-200/70 space-y-3">
+                  <label className="block text-xs font-semibold text-neutral-800">
+                    Select or search any product to see what it sells most with:
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Search box for filtering */}
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={affinitySearch}
+                        onChange={(e) => setAffinitySearch(e.target.value)}
+                        placeholder="Filter products list by name..."
+                        className="w-full pl-8 pr-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black"
+                      />
+                    </div>
+
+                    {/* Dropdown Select */}
+                    <div>
+                      <select
+                        value={activeAffinityProductTitle}
+                        onChange={(e) => setSelectedAffinityProduct(e.target.value)}
+                        className="w-full px-3 py-2 text-xs bg-white border border-neutral-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-black text-neutral-800 font-medium truncate"
+                      >
+                        {filteredAffinityProductsList.length === 0 ? (
+                          <option value="">No matching products</option>
+                        ) : (
+                          filteredAffinityProductsList.map((p) => {
+                            const companionCount =
+                              productAffinityData.productAffinityLookup[p.title]?.companions.length || 0;
+                            return (
+                              <option key={p.title} value={p.title}>
+                                {companionCount > 0
+                                  ? `★ [Co-sold with ${companionCount} items] `
+                                  : '[Sold alone] '}
+                                {p.title} ({p.totalOrders} {p.totalOrders === 1 ? 'order' : 'orders'})
+                              </option>
+                            );
+                          })
+                        )}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* VISUAL ANSWER CARD */}
+                {activeAffinity ? (
+                  <div className="space-y-4">
+                    {/* Header Banner */}
+                    <div className="bg-gradient-to-r from-neutral-900 to-neutral-800 text-white rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
+                      <div>
+                        <span className="text-[11px] text-neutral-300 uppercase tracking-wider font-semibold">
+                          Affinity Analysis
+                        </span>
+                        <h4 className="text-sm md:text-base font-semibold mt-0.5 text-white">
+                          Which product sells most with{' '}
+                          <span className="text-emerald-400 underline decoration-emerald-500/50 underline-offset-2">
+                            &quot;{activeAffinity.product.title}&quot;
+                          </span>
+                          ?
+                        </h4>
+                      </div>
+
+                      {activeAffinity.topCompanion ? (
+                        <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg border border-white/20 self-start md:self-auto">
+                          <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                          <span className="text-xs text-white font-medium">
+                            Top Companion:{' '}
+                            <strong className="text-emerald-300 font-bold">
+                              {activeAffinity.topCompanion.title}
+                            </strong>
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-2 bg-neutral-800 px-3 py-1.5 rounded-lg border border-neutral-700 self-start md:self-auto">
+                          <AlertCircle className="w-3.5 h-3.5 text-neutral-400" />
+                          <span className="text-xs text-neutral-300">Always purchased alone</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Side-by-side Visual Product Pairing */}
+                    {activeAffinity.topCompanion ? (
+                      <div className="bg-neutral-50/70 border border-neutral-200/80 rounded-xl p-5">
+                        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 justify-between">
+                          {/* PRIMARY PRODUCT CARD */}
+                          <div className="flex-1 bg-white border border-neutral-200/80 rounded-xl p-4 shadow-2xs flex items-center gap-3.5">
+                            <div className="w-16 h-16 rounded-lg bg-neutral-100 border border-neutral-200 shrink-0 overflow-hidden flex items-center justify-center">
+                              {activeAffinity.product.imageUrl ? (
+                                <img
+                                  src={activeAffinity.product.imageUrl}
+                                  alt={activeAffinity.product.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <ShoppingBag className="w-6 h-6 text-neutral-400" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-neutral-100 text-neutral-600 inline-block mb-1">
+                                {activeAffinity.product.productType || 'Jewelry'}
+                              </span>
+                              <h5
+                                className="text-xs font-semibold text-neutral-900 truncate"
+                                title={activeAffinity.product.title}
+                              >
+                                {activeAffinity.product.title}
+                              </h5>
+                              <div className="flex items-center gap-2 mt-1 text-xs">
+                                <span className="font-mono font-bold text-neutral-900">
+                                  {currencySymbol}
+                                  {(activeAffinity.product.price || 0).toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                                <span className="text-neutral-400 text-[11px]">
+                                  · in {activeAffinity.product.totalOrders}{' '}
+                                  {activeAffinity.product.totalOrders === 1 ? 'order' : 'orders'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* CONNECTOR / BADGE */}
+                          <div className="flex md:flex-col items-center justify-center gap-1.5 py-1 px-3 self-center">
+                            <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                              <Plus className="w-4 h-4" />
+                            </div>
+                            <div className="text-center">
+                              <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
+                                Sells Most With
+                              </span>
+                              <span className="text-[11px] font-semibold text-neutral-600">
+                                {activeAffinity.topCompanion.count}x together
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* TOP COMPANION PRODUCT CARD */}
+                          <div className="flex-1 bg-white border border-emerald-200 rounded-xl p-4 shadow-2xs flex items-center gap-3.5 relative overflow-hidden bg-gradient-to-br from-white to-emerald-50/30">
+                            <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-lg uppercase tracking-wider">
+                              #1 Best Match
+                            </div>
+                            <div className="w-16 h-16 rounded-lg bg-neutral-100 border border-neutral-200 shrink-0 overflow-hidden flex items-center justify-center">
+                              {activeAffinity.topCompanion.productMeta?.imageUrl ? (
+                                <img
+                                  src={activeAffinity.topCompanion.productMeta.imageUrl}
+                                  alt={activeAffinity.topCompanion.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <ShoppingBag className="w-6 h-6 text-neutral-400" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1 pr-6">
+                              <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 inline-block mb-1">
+                                {activeAffinity.topCompanion.productMeta?.productType || 'Companion'}
+                              </span>
+                              <h5
+                                className="text-xs font-semibold text-neutral-900 truncate"
+                                title={activeAffinity.topCompanion.title}
+                              >
+                                {activeAffinity.topCompanion.title}
+                              </h5>
+                              <div className="flex items-center gap-2 mt-1 text-xs">
+                                <span className="font-mono font-bold text-neutral-900">
+                                  {currencySymbol}
+                                  {(activeAffinity.topCompanion.productMeta?.price || 0).toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                                <span className="text-emerald-700 font-semibold text-[11px]">
+                                  · {activeAffinity.topCompanion.coRate.toFixed(0)}% co-purchase rate
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bundle Strategy Note */}
+                        <div className="mt-4 pt-3 border-t border-neutral-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-neutral-600">
+                          <span className="flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <span>
+                              <strong>Cross-Sell Strategy:</strong> Customers purchasing <em>{activeAffinity.product.title}</em> bought <em>{activeAffinity.topCompanion.title}</em> in <strong>{activeAffinity.topCompanion.coRate.toFixed(0)}%</strong> of their orders.
+                            </span>
+                          </span>
+                          <span className="text-neutral-500 font-mono text-[11px]">
+                            Found in orders: {activeAffinity.topCompanion.orders.join(', ')}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Standalone Product Empty State */
+                      <div className="bg-neutral-50/70 border border-neutral-200/80 rounded-xl p-6 text-center space-y-3">
+                        <div className="w-10 h-10 rounded-full bg-neutral-100 text-neutral-400 mx-auto flex items-center justify-center">
+                          <Package className="w-5 h-5" />
+                        </div>
+                        <div className="max-w-md mx-auto">
+                          <h5 className="text-sm font-semibold text-neutral-800">
+                            No companion products recorded yet
+                          </h5>
+                          <p className="text-xs text-neutral-500 mt-1">
+                            &quot;{activeAffinity.product.title}&quot; was purchased individually in all{' '}
+                            <strong>{activeAffinity.product.totalOrders}</strong> recorded orders in this period.
+                          </p>
+                          <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px]">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                            <span>Opportunity: Set up a cross-sell popup or bundle discount for this item on your storefront!</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TABLE OF ALL COMPANIONS BOUGHT WITH THIS PRODUCT */}
+                    {activeAffinity.companions.length > 0 && (
+                      <div className="border border-neutral-200/90 rounded-xl overflow-hidden bg-white shadow-2xs mt-4">
+                        <div className="px-4 py-3 bg-neutral-50/80 border-b border-neutral-200 flex items-center justify-between">
+                          <h5 className="text-xs font-semibold text-neutral-900 flex items-center gap-1.5">
+                            <Layers className="w-3.5 h-3.5 text-neutral-500" />
+                            All Items Sold With &quot;{activeAffinity.product.title}&quot; ({activeAffinity.companions.length})
+                          </h5>
+                          <span className="text-[11px] text-neutral-500">
+                            Ranked by frequency
+                          </span>
+                        </div>
+                        <div className="divide-y divide-neutral-100">
+                          {activeAffinity.companions.map((comp, idx) => (
+                            <div
+                              key={comp.title}
+                              className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-neutral-50/80 transition"
+                            >
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <span className="w-5 h-5 rounded-full bg-neutral-100 text-neutral-600 text-[10px] font-bold flex items-center justify-center shrink-0">
+                                  #{idx + 1}
+                                </span>
+                                <div className="w-10 h-10 rounded-md bg-neutral-100 border border-neutral-200 shrink-0 overflow-hidden flex items-center justify-center">
+                                  {comp.productMeta?.imageUrl ? (
+                                    <img
+                                      src={comp.productMeta.imageUrl}
+                                      alt={comp.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <ShoppingBag className="w-4 h-4 text-neutral-400" />
+                                  )}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-xs font-semibold text-neutral-900 truncate" title={comp.title}>
+                                    {comp.title}
+                                  </div>
+                                  <div className="text-[11px] text-neutral-400 flex items-center gap-2 mt-0.5">
+                                    <span>{comp.productMeta?.productType || 'Fine Jewelry'}</span>
+                                    <span>·</span>
+                                    <span className="font-mono text-neutral-700">
+                                      {currencySymbol}
+                                      {(comp.productMeta?.price || 0).toLocaleString('en-US', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-4 self-end sm:self-auto">
+                                <div className="text-right">
+                                  <div className="text-xs font-bold text-neutral-900 font-mono">
+                                    {comp.count} {comp.count === 1 ? 'time' : 'times'}
+                                  </div>
+                                  <div className="text-[10px] text-emerald-600 font-medium">
+                                    {comp.coRate.toFixed(0)}% of orders
+                                  </div>
+                                </div>
+                                <div className="w-24 bg-neutral-100 h-2 rounded-full overflow-hidden shrink-0">
+                                  <div
+                                    className="bg-emerald-600 h-full rounded-full"
+                                    style={{ width: `${Math.min(Math.max(comp.coRate, 8), 100)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="py-8 text-center text-xs text-neutral-400">
+                    Please select a product from the dropdown above.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: ALL TOP PRODUCT PAIRS */}
+            {affinityTab === 'top_pairs' && (
+              <div className="space-y-4">
+                {productAffinityData.pairs.length === 0 ? (
+                  <div className="py-12 text-center space-y-3 bg-neutral-50/50 rounded-xl border border-neutral-200">
+                    <Combine className="w-8 h-8 text-neutral-300 mx-auto" />
+                    <p className="text-xs text-neutral-500">
+                      No multi-item product pairs detected in {activeDateRangeText}.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectPreset('all')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black text-white text-xs font-medium hover:bg-neutral-800 transition"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Switch to All Time</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {productAffinityData.pairs.map((pair, idx) => (
+                      <div
+                        key={pair.id}
+                        className="bg-neutral-50/60 border border-neutral-200/80 rounded-xl p-4 shadow-2xs space-y-3 hover:border-neutral-300 transition"
+                      >
+                        {/* Header: Rank + Times Sold */}
+                        <div className="flex items-center justify-between border-b border-neutral-200/60 pb-2">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-neutral-900 text-white">
+                            PAIR #{idx + 1}
+                          </span>
+                          <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md font-mono">
+                            Bought together {pair.count} {pair.count === 1 ? 'time' : 'times'}
+                          </span>
+                        </div>
+
+                        {/* Two Products Side-by-side */}
+                        <div className="space-y-2">
+                          {/* Product A */}
+                          <div className="flex items-center gap-2.5 bg-white p-2.5 rounded-lg border border-neutral-200/60">
+                            <div className="w-10 h-10 rounded bg-neutral-100 border border-neutral-200 shrink-0 overflow-hidden flex items-center justify-center">
+                              {pair.productA?.imageUrl ? (
+                                <img
+                                  src={pair.productA.imageUrl}
+                                  alt={pair.titleA}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <ShoppingBag className="w-4 h-4 text-neutral-400" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h6 className="text-xs font-medium text-neutral-900 truncate" title={pair.titleA}>
+                                {pair.titleA}
+                              </h6>
+                              <span className="text-[11px] text-neutral-500 font-mono">
+                                {currencySymbol}
+                                {(pair.productA?.price || 0).toLocaleString('en-US', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Plus separator */}
+                          <div className="flex justify-center -my-1">
+                            <span className="w-5 h-5 rounded-full bg-neutral-200 text-neutral-700 text-[10px] font-bold flex items-center justify-center z-10 border border-white">
+                              +
+                            </span>
+                          </div>
+
+                          {/* Product B */}
+                          <div className="flex items-center gap-2.5 bg-white p-2.5 rounded-lg border border-neutral-200/60">
+                            <div className="w-10 h-10 rounded bg-neutral-100 border border-neutral-200 shrink-0 overflow-hidden flex items-center justify-center">
+                              {pair.productB?.imageUrl ? (
+                                <img
+                                  src={pair.productB.imageUrl}
+                                  alt={pair.titleB}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <ShoppingBag className="w-4 h-4 text-neutral-400" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h6 className="text-xs font-medium text-neutral-900 truncate" title={pair.titleB}>
+                                {pair.titleB}
+                              </h6>
+                              <span className="text-[11px] text-neutral-500 font-mono">
+                                {currencySymbol}
+                                {(pair.productB?.price || 0).toLocaleString('en-US', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Footer details: Orders & Combined Value */}
+                        <div className="pt-1 flex items-center justify-between text-[11px] text-neutral-500">
+                          <span>
+                            Orders: <strong className="text-neutral-800 font-mono">{pair.orders.join(', ')}</strong>
+                          </span>
+                          <span className="font-mono font-semibold text-neutral-900">
+                            Est. Pair Value: {currencySymbol}
+                            {pair.combinedRevenue.toLocaleString('en-US', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ORDERS TABLE IN THIS DATE RANGE */}
